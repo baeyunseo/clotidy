@@ -1,6 +1,7 @@
 {
   "name": "clotidy",
   "version": "1.0.0",
+  "type": "module",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -8,8 +9,21 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
   "dependencies": {
+    "axios": "^1.9.0",
     "firebase": "^11.6.1"
-  }
+  },
+  "directories": {
+    "test": "test"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/baeyunseo/clotidy.git"
+  },
+  "bugs": {
+    "url": "https://github.com/baeyunseo/clotidy/issues"
+  },
+  "homepage": "https://github.com/baeyunseo/clotidy#readme",
+  "description": ""
 }

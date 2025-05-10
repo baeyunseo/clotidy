@@ -29,6 +29,7 @@ export async function registerCloth(
       image_url: imageUrl,
       location: location,
       worn_count: 0,
+      pattern: aiResult.pattern,
       last_worn: null
     });
     console.log("✅ 옷 등록 성공:", docRef.id);
@@ -83,7 +84,7 @@ export async function registerCloth(
   // 사용자가 이미지를 등록 할 시, ai 자동 분석하여 db에 저장
 import { fetchColorFromAI } from "./aiService.js"; // AI 요청 함수
 
-export async function registerClothWithAI(userId, clothName, category, imagePath, location) {
+export async function registerClothWithAI(userId, clothName, category,  location, imagePath) {
   try {
     const aiResult = await fetchColorFromAI(imagePath);
     if (!aiResult) throw new Error("AI 분석 실패");
