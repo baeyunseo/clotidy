@@ -26,7 +26,9 @@ export async function fetchColorFromAI(imagePath) {
       color_rgb,
       sub_color_rgb,
       season,
-      pattern // ← 이게 추가되었는지 확인
+      season_confidence,
+      pattern, 
+      pattern_confidence
     };
 
   } catch (error) {
