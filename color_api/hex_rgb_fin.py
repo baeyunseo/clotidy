@@ -54,7 +54,7 @@ async def extract_colors(file: UploadFile = File(...)):
     dominant_rgb, sub_rgb = extract_dominant_and_sub_color(image_np, mask)
 
     return {
-        "dominant_rgb": dominant_rgb,
+        "color_rgb": dominant_rgb,
         "dominant_hex": rgb_to_hex(dominant_rgb) if dominant_rgb else None,
-        "sub_rgb": sub_rgb
+        "sub_color_rgb": sub_rgb
     }
