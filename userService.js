@@ -27,10 +27,11 @@ export async function saveUserInfo(userId, name, email) {
 
 export async function saveClosetLayout(userId, layoutData) {
   try {
-    const userRef = doc(db, "users", userId); // users 컬렉션 안에 해당 UID 문서를 찾음
+    const userRef = doc(db, "users", userId);
 
     await updateDoc(userRef, {
-      closet_layout: layoutData
+      layout_type: layoutData.layout_type,
+      closet_layout: layoutData.closet_layout
     });
 
     console.log("✅ 옷장 레이아웃 저장/수정 성공");

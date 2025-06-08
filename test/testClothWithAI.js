@@ -1,4 +1,7 @@
 // test/testClothWithAI.js
+// test/testClothWithAI.js 위쪽에 추가
+import fs from "fs";
+console.log("경로 존재 여부:", fs.existsSync("./test/sample_images/sample1.jpg"));
 
 import { registerClothWithAI } from "../clothService.js";
 

@@ -1,39 +1,33 @@
-// ai 연동 및 분석 
+// aiService.js
 
 import axios from "axios";
-import fs from "fs";
 import FormData from "form-data";
+import fs from "fs";
 
 /**
- * AI에게 이미지 분석 요청
- * @param {string} imagePath - 로컬 이미지 파일 경로
- * @returns {Promise<object>} - AI 응답 (color, color_rgb, sub_color_rgb)
+ * FastAPI 서버에 옷 이미지 전송 → 색상 분석 결과 받기
+ * @param {string} imagePath - 로컬 이미지 경로
+ * @returns {Promise<object>} - color, color_rgb, sub_color_rgb 포함한 AI 분석 결과
  */
-
 export async function fetchColorFromAI(imagePath) {
+  const formData = new FormData();
+  formData.append("file", fs.createReadStream(imagePath), {
+    filename: "sample1.jpg",
+    contentType: "image/jpeg" // MIME 타입 명시
+  });
+
   try {
-    const imageData = fs.readFileSync(imagePath);
-    const response = await axios.post("http://localhost:8000/extract-color", imageData, {
+    console.log("🎯 AI 분석 요청: 이미지 전송 중...");
+    const response = await axios.post("http://localhost:8000/extract-color", formData, {
       headers: {
-        "Content-Type": "application/octet-stream"
+        ...formData.getHeaders()
       }
     });
 
-    const { color, color_rgb, sub_color_rgb, season, pattern } = response.data;
-
-    return {
-      color,
-      color_rgb,
-      sub_color_rgb,
-      season,
-      season_confidence,
-      pattern, 
-      pattern_confidence
-    };
-
+    console.log("🎯 AI 응답 수신:", response.data);
+    return response.data;
   } catch (error) {
     console.error("❌ AI 분석 실패:", error.message);
     throw error;
   }
 }
-

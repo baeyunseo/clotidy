@@ -4,6 +4,7 @@ import {
     collection, addDoc, query, where, getDocs, doc, updateDoc, increment, deleteDoc 
   } from "firebase/firestore";
   import { db } from "./firebaseConfig.js";
+
   
 // 옷 등록 기능 (color_rgb, sub_color_rgb 필드 추가)
 export async function registerCloth(
@@ -29,7 +30,7 @@ export async function registerCloth(
       image_url: imageUrl,
       location: location,
       worn_count: 0,
-      pattern: aiResult.pattern,
+     // pattern: aiResult.pattern,
       last_worn: null
     });
     console.log("✅ 옷 등록 성공:", docRef.id);
@@ -84,12 +85,16 @@ export async function registerCloth(
   // 사용자가 이미지를 등록 할 시, ai 자동 분석하여 db에 저장
 import { fetchColorFromAI } from "./aiService.js"; // AI 요청 함수
 
-export async function registerClothWithAI(userId, clothName, category,  location, imagePath) {
+// AI 분석 결과로 옷 등록
+export async function registerClothWithAI(userId, clothName, category, location, imagePath) {
   try {
-    const aiResult = await fetchColorFromAI(imagePath);
-    if (!aiResult) throw new Error("AI 분석 실패");
+    const aiData = await fetchColorFromAI(imagePath);
 
-    const { color, color_rgb, sub_color_rgb, season } = aiResult;
+    // AI 응답에서 필요한 데이터 꺼내기
+    const { color, color_rgb, sub_color_rgb } = aiData;
+
+    // 예시: 계절 정보는 아직 없으므로 "unknown"으로 등록
+    const season = "unknown";
 
     await registerCloth(
       userId,
@@ -97,12 +102,16 @@ export async function registerClothWithAI(userId, clothName, category,  location
       category,
       color,
       season,
-      "firebasestorageurl", // 추후 이미지 URL로 바꿔야 함
+      imagePath,
       location,
-      color_rgb,
+      { r: color_rgb[0], g: color_rgb[1], b: color_rgb[2] },
       sub_color_rgb
+        ? { r: sub_color_rgb[0], g: sub_color_rgb[1], b: sub_color_rgb[2] }
+        : null
     );
-  } catch (err) {
-    console.error("자동 등록 실패:", err.message);
+
+  } catch (error) {
+    console.error("자동 등록 실패:", error.message);
   }
 }
+
