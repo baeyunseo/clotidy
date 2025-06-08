@@ -1,3 +1,5 @@
+// src/src/HomeScreen.tsx
+
 import React from "react";
 import { View, Text } from "react-native";
 const HomeScreen = () => (

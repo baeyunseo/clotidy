@@ -1,6 +1,6 @@
 // userService.js
 
-import { db } from "./firebaseConfig.js";
+import { db } from "./firebaseConfig";
 import { collection, setDoc, doc, updateDoc } from "firebase/firestore";
 
 //회원가입/로그인 시 유저 정보 저장

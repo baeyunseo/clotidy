@@ -1,8 +1,8 @@
+// src/screens/LoginScreen.tsx
+
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, Alert, StyleSheet } from 'react-native';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../lib/firebase'; // ✅ Web SDK로 설정된 auth
-import { saveUserInfo } from '../lib/userService';
+import auth from '@react-native-firebase/auth';
 
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState('');
@@ -10,10 +10,9 @@ export default function LoginScreen({ navigation }: any) {
 
   const handleLogin = async () => {
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, pw);
-      const user = userCredential.user;
-
-      await saveUserInfo(user.uid, user.displayName ?? '', user.email ?? '');
+      // ✅ 로그인 시 Firestore 저장 X, 오직 인증만!
+      const res = await auth().signInWithEmailAndPassword(email, pw);
+      // Firestore 저장하지 말 것! (api 명세서, userService.js에 따라)
       navigation.replace('Home');
     } catch (e: any) {
       Alert.alert('로그인 오류', e.message);
@@ -23,8 +22,20 @@ export default function LoginScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>로그인</Text>
-      <TextInput style={styles.input} placeholder="이메일" value={email} onChangeText={setEmail} autoCapitalize="none" />
-      <TextInput style={styles.input} placeholder="비밀번호" value={pw} onChangeText={setPw} secureTextEntry />
+      <TextInput
+        style={styles.input}
+        placeholder="이메일"
+        value={email}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="비밀번호"
+        value={pw}
+        onChangeText={setPw}
+        secureTextEntry
+      />
       <Button title="로그인" onPress={handleLogin} />
       <Button title="회원가입" onPress={() => navigation.replace('Signup')} />
     </View>

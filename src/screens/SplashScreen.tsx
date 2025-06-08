@@ -1,3 +1,5 @@
+// src/src/SplashScreen.tsx
+
 import React, { useEffect } from 'react';
 import { View, Image, StyleSheet } from 'react-native';
 

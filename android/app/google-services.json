@@ -1,32 +1,13 @@
 {
   "project_info": {
-    "project_number": "323254678942",
-    "project_id": "clotidy-test",
-    "storage_bucket": "clotidy-test.firebasestorage.app"
+    "project_number": "69511253866",
+    "project_id": "clotidy-f25b5",
+    "storage_bucket": "clotidy-f25b5.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:323254678942:android:7a128b8bf827e50f9d528f",
-        "android_client_info": {
-          "package_name": "com.clotidy.app"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyAVgWa8GADrC-XibuDrHHgYfV98JlBAqag"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:323254678942:android:450f6faa4f2367559d528f",
+        "mobilesdk_app_id": "1:69511253866:android:8f2b420592a8b922839f13",
         "android_client_info": {
           "package_name": "com.myclotidy"
         }
@@ -34,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyAVgWa8GADrC-XibuDrHHgYfV98JlBAqag"
+          "current_key": "AIzaSyBrEvWtxjeHBUnSFb8Gt9274qjXT5Khfv4"
         }
       ],
       "services": {
