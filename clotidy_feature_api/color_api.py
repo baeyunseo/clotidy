@@ -58,3 +58,8 @@ async def extract_colors(file: UploadFile = File(...)):
         "dominant_hex": rgb_to_hex(dominant_rgb) if dominant_rgb else None,
         "sub_color_rgb": sub_rgb
     }
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=8001, reload=False)
