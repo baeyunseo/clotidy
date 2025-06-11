@@ -15,6 +15,10 @@ import SplashScreen from './src/screens/SplashScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import SignupScreen from './src/screens/SignupScreen';
+import ClosetIndexScreen from './src/screens/ClosetindexScreen';
+import ClosetselectScreen from './src/screens/ClosetselectScreen';
+import ClosetGridScreen from './src/screens/ClosetGridScreen';
+import ClosetNameScreen from './src/screens/ClosetNameScreen';  
 
 // ❌ 타입 중복 선언 제거!!
 // export type RootStackParamList = { ... } <<<< 이거 완전히 삭제!
@@ -29,6 +33,10 @@ export default function App() {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Signup" component={SignupScreen} />
+        <Stack.Screen name="Closet" component={ClosetIndexScreen} />
+        <Stack.Screen name="ClosetSelect" component={ClosetselectScreen} />
+        <Stack.Screen name="ClosetGrid" component={ClosetGridScreen} />
+        <Stack.Screen name="ClosetName" component={ClosetNameScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

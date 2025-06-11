@@ -12,5 +12,9 @@ export type RootStackParamList = {
     Login: undefined;
     Home: undefined;
     Signup: undefined;
+    Closet: undefined;
+    ClosetSelect: undefined;
+    ClosetGrid: undefined;
+    ClosetName: undefined;
   };
   
