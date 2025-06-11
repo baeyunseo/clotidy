@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import auth from '@react-native-firebase/auth';
+import { auth } from "@/libfirebase";
 import { saveUserInfo } from '../lib/userService'; // 명세서 함수
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -24,7 +24,7 @@ export default function SignupScreen() {
 
     try {
       // 1. 인증(계정 생성)
-      const res = await auth().createUserWithEmailAndPassword(email, pw);
+      const res = await auth.createUserWithEmailAndPassword(email, pw);
       const uid = res.user.uid;
 
       // 2. 명세서 맞게 이름은 name!

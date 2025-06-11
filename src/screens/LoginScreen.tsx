@@ -43,7 +43,49 @@ export default function LoginScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex:1, justifyContent:'center', padding:24 },
-  title: { fontSize:28, fontWeight:'bold', marginBottom:24 },
-  input: { borderWidth:1, borderColor:'#ddd', borderRadius:8, padding:12, marginBottom:12 }
+  container: {
+    flex: 1,
+    backgroundColor: '#fefef6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 30,
+  },
+  title: {
+    fontSize: 24,
+    marginBottom: 40,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  input: {
+    width: '100%',
+    backgroundColor: '#f1f1eb',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 15,
+  },
+  loginButton: {
+    width: '100%',
+    backgroundColor: '#95d5b2',
+    padding: 15,
+    borderRadius: 20,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  loginText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  signupButton: {
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    padding: 13,
+    borderRadius: 20,
+    alignItems: 'center',
+    marginTop: 10,
+    backgroundColor: '#fff',
+  },
+  signupText: {
+    color: '#333',
+  },
 });
