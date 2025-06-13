@@ -9,35 +9,42 @@
 import * as React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { RootStackParamList } from './src/navigation/types'; // ✅ 네비게이터 타입 import
+import { RootStackParamList } from './src/navigation/types';
 
-import SplashScreen from './src/screens/SplashScreen';
 import LoginScreen from './src/screens/LoginScreen';
-import HomeScreen from './src/screens/HomeScreen';
 import SignupScreen from './src/screens/SignupScreen';
-import ClosetIndexScreen from './src/screens/ClosetindexScreen';
-import ClosetselectScreen from './src/screens/ClosetselectScreen';
+import HomeScreen from './src/screens/HomeScreen';
+import ClosetIndexScreen from './src/screens/ClosetIndexScreen'; // 옷장 인트로(등록 시작)
+import ClosetSelectScreen from './src/screens/ClosetSelectScreen';
 import ClosetGridScreen from './src/screens/ClosetGridScreen';
-import ClosetNameScreen from './src/screens/ClosetNameScreen';  
+import CheckClosetScreen from './src/screens/CheckClosetScreen';
+import SplashScreen from './src/screens/SplashScreen';
+import RegisterClothScreen from './src/screens/RegisterClothScreen';
+import BlockClothesListScreen from './src/screens/BlockClothesListScreen';
 
-// ❌ 타입 중복 선언 제거!!
-// export type RootStackParamList = { ... } <<<< 이거 완전히 삭제!
+
 
 const Stack = createStackNavigator<RootStackParamList>();
 
 export default function App() {
   return (
     <NavigationContainer>
+      
       <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Splash" component={SplashScreen} />
+        <Stack.Screen name="CheckCloset" component={CheckClosetScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Signup" component={SignupScreen} />
-        <Stack.Screen name="Closet" component={ClosetIndexScreen} />
-        <Stack.Screen name="ClosetSelect" component={ClosetselectScreen} />
+        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="ClosetIndex" component={ClosetIndexScreen} />
+        <Stack.Screen name="ClosetSelect" component={ClosetSelectScreen} />
         <Stack.Screen name="ClosetGrid" component={ClosetGridScreen} />
-        <Stack.Screen name="ClosetName" component={ClosetNameScreen} />
+          <Stack.Screen name="RegisterCloth" component={RegisterClothScreen} />
+          <Stack.Screen name="BlockClothesList" component={BlockClothesListScreen} />
+
+
       </Stack.Navigator>
+
     </NavigationContainer>
   );
 }

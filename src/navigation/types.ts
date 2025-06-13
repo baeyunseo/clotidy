@@ -8,13 +8,25 @@
 
 
 export type RootStackParamList = {
-    Splash: undefined;
-    Login: undefined;
-    Home: undefined;
-    Signup: undefined;
-    Closet: undefined;
-    ClosetSelect: undefined;
-    ClosetGrid: undefined;
-    ClosetName: undefined;
+  Splash: undefined;
+  Login: undefined;
+  Signup: undefined;
+  Home: undefined;
+  ClosetIndex: undefined;    // ✅ 이렇게
+  ClosetSelect: undefined;
+  ClosetGrid: {
+    rows: string;
+    cols: string;
+    layout_type: string;
+  };      // 필요시 파라미터 타입 지정
+  ClosetName: {
+    rows: string;
+    cols: string;
+    layout_type: string;
   };
+  CheckCloset: undefined;
+  RegisterCloth: undefined;
+  BlockClothesList: { location: string };
+};
+
   

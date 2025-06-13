@@ -9,15 +9,14 @@ export default function LoginScreen({ navigation }: any) {
   const [pw, setPw] = useState('');
 
   const handleLogin = async () => {
-    try {
-      // ✅ 로그인 시 Firestore 저장 X, 오직 인증만!
-      const res = await auth().signInWithEmailAndPassword(email, pw);
-      // Firestore 저장하지 말 것! (api 명세서, userService.js에 따라)
-      navigation.replace('Home');
-    } catch (e: any) {
-      Alert.alert('로그인 오류', e.message);
-    }
-  };
+  try {
+    const res = await auth().signInWithEmailAndPassword(email, pw);
+    // 로그인 성공 후 옷장 체크 분기 화면으로 이동
+    navigation.replace('CheckCloset');
+  } catch (e: any) {
+    Alert.alert('로그인 오류', e.message);
+  }
+};
 
   return (
     <View style={styles.container}>

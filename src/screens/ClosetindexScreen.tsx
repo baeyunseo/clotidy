@@ -1,11 +1,14 @@
-// 📁 app/closet/closetindex.tsx — 옷장 진입: 옷장 없음 → 선택 → 설정 진입
+// scr/screens/ClosetIndexScreen — 옷장 진입: 옷장 없음 → 선택 → 설정 진입
 
 import React from 'react';
 import { Image, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../navigation/types';
+
 
 const ClosetEntry = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   console.log("✅ ClosetEntry loaded");
 

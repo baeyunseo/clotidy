@@ -1,5 +1,6 @@
 {
   "name": "myclotidy",
+  "type": "module",
   "version": "0.0.1",
   "private": true,
   "scripts": {
@@ -16,11 +17,15 @@
     "@react-navigation/native": "^7.1.10",
     "@react-navigation/native-stack": "^7.3.14",
     "@react-navigation/stack": "^7.3.3",
+    "axios": "^1.9.0",
     "chalk": "^5.4.1",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
     "firebase": "^11.9.0",
     "react": "19.0.0",
     "react-native": "0.79.3",
     "react-native-gesture-handler": "^2.25.0",
+    "react-native-image-picker": "^8.2.1",
     "react-native-safe-area-context": "^5.4.1",
     "react-native-screens": "~4.11.1"
   },

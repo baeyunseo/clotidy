@@ -14,7 +14,7 @@ export default function SplashScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
       <Image
-        source={require('../../assets/clotidylogo.png')}
+        source={require('/Users/bagseong-eun/myclotidy/assets/images/clotidylogo.png')}
         style={styles.logo}
         resizeMode="contain"
       />

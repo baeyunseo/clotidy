@@ -1,4 +1,4 @@
-// ✅ app/closet/closetselect.tsx - 옷장 선택 화면
+// src/screens/ClosetSelectScreen.tsx - 옷장 선택 화면
 
 import React, { useState } from 'react';
 import {
@@ -7,10 +7,14 @@ import {
   Image,
   StyleSheet,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../../navigation/types';
+import type { RootStackParamList } from '../navigation/types';
+// ✅ userService import!
+import { saveClosetLayout } from '../lib/userService';
+import auth from '@react-native-firebase/auth';
 
 const closetOptions = [
   {
@@ -42,28 +46,51 @@ const closetOptions = [
 export default function ClosetSelectScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [selected, setSelected] = useState('medium');
+  const [saving, setSaving] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const selectedOption = closetOptions.find((c) => c.id === selected);
-    if (selectedOption) {
+    if (!selectedOption) return;
+
+    setSaving(true);
+
+    try {
+      const userId = auth().currentUser?.uid;
+      if (!userId) {
+        Alert.alert('로그인 정보 없음', '로그인 후 다시 시도하세요.');
+        setSaving(false);
+        return;
+      }
+
+      // ✅ userService 활용 (Firestore 직접 접근 X)
+      await saveClosetLayout(userId, {
+        layout_type: selectedOption.layout_type,
+        closet_layout: [],
+      });
+
       navigation.navigate('ClosetGrid', {
         rows: String(selectedOption.rows),
         cols: String(selectedOption.cols),
         layout_type: selectedOption.layout_type,
       });
+    } catch (e) {
+      Alert.alert('오류', '옷장 선택 저장에 실패했습니다.');
+      console.error(e);
+    } finally {
+      setSaving(false);
     }
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>당신의 옷장을 선택하세요!</Text>
-
       {closetOptions.map((option) => (
         <View key={option.id} style={styles.row}>
           <Image source={option.image} style={styles.image} resizeMode="contain" />
           <TouchableOpacity
             style={[styles.optionBox, selected === option.id && styles.selectedBox]}
             onPress={() => setSelected(option.id)}
+            disabled={saving}
           >
             <View style={styles.checkboxWrapper}>
               <View style={[styles.checkbox, selected === option.id && styles.checked]} />
@@ -73,9 +100,8 @@ export default function ClosetSelectScreen() {
           </TouchableOpacity>
         </View>
       ))}
-
-      <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-        <Text style={styles.buttonText}>선택 완료</Text>
+      <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={saving}>
+        <Text style={styles.buttonText}>{saving ? '저장 중...' : '선택 완료'}</Text>
       </TouchableOpacity>
     </View>
   );
