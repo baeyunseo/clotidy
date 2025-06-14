@@ -113,7 +113,7 @@ export default function RegisterClothScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, backgroundColor: '#fff' },
+  container: { flex: 1, padding: 24, backgroundColor: '#FFFEFA' },
   uploadBox: {
     borderWidth: 1, borderColor: '#37955F', borderRadius: 10,
     justifyContent: 'center', alignItems: 'center', height: 180, marginBottom: 24

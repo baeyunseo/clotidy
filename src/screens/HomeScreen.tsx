@@ -105,7 +105,7 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
-      <Text style={styles.header}>디지털 옷장</Text>
+      <Image source={require("../../assets/images/clotidy1.png")} style={styles.logo} />
 
       <View style={styles.tabContainer}>
         <TouchableOpacity onPress={() => setActiveTab("closet")}>
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
   activeTab: { color: "#6AC892", fontWeight: "bold", borderBottomWidth: 2, borderColor: "#6AC892" },
   scrollContent: { paddingHorizontal: 20 },
   userBox: { borderWidth: 1, borderColor: "#6AC892", borderRadius: 12, padding: 15, marginBottom: 20 },
-  sectionTitle: { fontSize: 16, color: "#6AC892", fontWeight: "bold" },
+  sectionTitle: { fontSize: 16, color: "#37955F", fontWeight: "bold" },
   sectionDesc: { color: "#555", marginTop: 5 },
   gridAbsoluteBox: { position: 'relative', alignSelf: 'center', marginTop: 10 },
   gridText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
@@ -225,4 +225,13 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   tabIcon: { width: 24, height: 24 },
+  logo:{
+  width: 126,
+  height: 30,
+  resizeMode: "contain",
+  alignSelf: "center",
+  marginTop: 50,
+  marginBottom: 10,
+},
+
 });

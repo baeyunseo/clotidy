@@ -69,7 +69,7 @@ export default function BlockClothesListScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", paddingTop: 32 },
+  container: { flex: 1, backgroundColor: "#FFFEFA", paddingTop: 32 },
   header: { fontSize: 20, fontWeight: "bold", color: "#286E46", margin: 20, textAlign: "center" },
   itemCard: {
     flex: 1,

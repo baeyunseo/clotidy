@@ -109,7 +109,7 @@ export default function ClosetSelectScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 24, backgroundColor: '#FFFEFA' },
-  title: { fontSize: 16, fontWeight: 'bold', color: '#37955F', marginBottom: 20 },
+  title: { fontSize: 16, fontWeight: 'bold', color: '#', marginBottom: 20 },
   row: { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },
   image: { width: 100, height: 140, marginRight: 16 },
   optionBox: {
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   checked: {
-    backgroundColor: '#6AC892',
+    backgroundColor: '#37955F',
   },
   label: { fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
   size: { fontSize: 14, color: '#888' },

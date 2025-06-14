@@ -59,23 +59,50 @@ export default function SignupScreen() {
         autoCapitalize="none"
       />
       <TextInput
-        placeholder="비밀번호"
+        placeholder="비밀번호(영문,숫자,특수문자 조합 10자 이상)"
         value={pw}
         onChangeText={setPw}
         secureTextEntry
         style={styles.input}
       />
       <TouchableOpacity onPress={handleSignup} style={styles.button}>
-        <Text style={styles.buttonText}>가입하기</Text>
+        <Text style={styles.buttonText}>회원가입</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24 },
-  title: { fontSize: 28, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 12 },
-  button: { backgroundColor: '#286E46', padding: 14, borderRadius: 8 },
-  buttonText: { color: '#fff', textAlign: 'center', fontSize: 16 },
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFEFA',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 30,
+  },
+  title: {
+    fontSize: 22,
+    marginBottom: 40,
+    fontWeight: 'bold',
+    color: '#212121',
+  },
+  input: {
+    width: '100%',
+    backgroundColor: '#f1f1eb',
+    borderRadius: 50,
+    padding: 12,
+    marginBottom: 15,
+  },
+  button: { 
+    width: '100%' ,
+    backgroundColor: '#6AC892',
+    alignItems: 'center',
+    borderRadius: 60,
+    padding: 12,
+    marginBottom: 85,
+  },
+  buttonText: { 
+    color: '#fff',
+    textAlign: 'center',
+    fontSize: 16 },
 });

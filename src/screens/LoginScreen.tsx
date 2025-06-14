@@ -1,7 +1,14 @@
 // src/screens/LoginScreen.tsx
 
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, Alert, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  StyleSheet,
+} from 'react-native';
 import auth from '@react-native-firebase/auth';
 
 export default function LoginScreen({ navigation }: any) {
@@ -9,18 +16,18 @@ export default function LoginScreen({ navigation }: any) {
   const [pw, setPw] = useState('');
 
   const handleLogin = async () => {
-  try {
-    const res = await auth().signInWithEmailAndPassword(email, pw);
-    // 로그인 성공 후 옷장 체크 분기 화면으로 이동
-    navigation.replace('CheckCloset');
-  } catch (e: any) {
-    Alert.alert('로그인 오류', e.message);
-  }
-};
+    try {
+      const res = await auth().signInWithEmailAndPassword(email, pw);
+      navigation.replace('CheckCloset');
+    } catch (e: any) {
+      Alert.alert('로그인 오류', e.message);
+    }
+  };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>로그인</Text>
+
       <TextInput
         style={styles.input}
         placeholder="이메일"
@@ -35,8 +42,16 @@ export default function LoginScreen({ navigation }: any) {
         onChangeText={setPw}
         secureTextEntry
       />
-      <Button title="로그인" onPress={handleLogin} />
-      <Button title="회원가입" onPress={() => navigation.replace('Signup')} />
+
+      <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
+        <Text style={styles.loginText}>로그인</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.signupButton}
+        onPress={() => navigation.replace('Signup')}>
+        <Text style={styles.signupText}>회원가입</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -44,16 +59,16 @@ export default function LoginScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fefef6',
+    backgroundColor: '#FFFEFA',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 30,
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     marginBottom: 40,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#212121',
   },
   input: {
     width: '100%',
@@ -61,30 +76,33 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 12,
     marginBottom: 15,
+    color: '#666',
   },
   loginButton: {
     width: '100%',
-    backgroundColor: '#95d5b2',
-    padding: 15,
-    borderRadius: 20,
+    backgroundColor: '#6AC891',
+    paddingVertical: 14,
+    borderRadius: 25,
     alignItems: 'center',
     marginTop: 10,
   },
   loginText: {
     color: '#fff',
     fontWeight: 'bold',
+    fontSize: 16,
   },
   signupButton: {
     width: '100%',
+    backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#ddd',
-    padding: 13,
-    borderRadius: 20,
+    borderColor: '#ccc',
+    paddingVertical: 13,
+    borderRadius: 25,
     alignItems: 'center',
     marginTop: 10,
-    backgroundColor: '#fff',
   },
   signupText: {
     color: '#333',
+    fontSize: 15,
   },
 });
