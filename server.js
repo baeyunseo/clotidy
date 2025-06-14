@@ -2,6 +2,8 @@
 import express from 'express';
 import cors from 'cors';
 import { saveUserInfo, saveClosetLayout } from './userService.js';
+import { getDoc, doc } from 'firebase/firestore';
+import { db } from './firebaseConfig.js';
 
 const app = express();
 app.use(cors());
@@ -73,7 +75,51 @@ app.delete('/api/delete-cloth/:clothId', async (req, res) => {
   }
 });
 
+// 유저정보조회 get
+app.get('/api/user/:userId', async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const userRef = doc(db, 'users', userId);
+    const userSnap = await getDoc(userRef);
+    if (!userSnap.exists()) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.status(200).json(userSnap.data());
+  } catch (error) {
+    console.error('유저 조회 실패:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
+// 옷장 레이아웃 조회 get
+app.get('/api/closet-layout/:userId', async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const userRef = doc(db, 'users', userId);
+    const userSnap = await getDoc(userRef);
+    if (!userSnap.exists()) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const { closet_layout, layout_type } = userSnap.data();
+    res.status(200).json({ closet_layout, layout_type });
+  } catch (error) {
+    console.error('옷장 레이아웃 조회 실패:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 옷 정보 수정
+app.patch('/api/update-cloth/:clothId', async (req, res) => {
+  const { clothId } = req.params;
+  const updates = req.body;
+  try {
+    await updateCloth(clothId, updates);
+    res.status(200).json({ message: 'Cloth updated successfully' });
+  } catch (error) {
+    console.error('옷 수정 실패:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // 서버 시작
 const PORT = process.env.PORT || 5000;
