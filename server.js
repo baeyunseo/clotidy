@@ -4,6 +4,28 @@ import cors from 'cors';
 import { saveUserInfo, saveClosetLayout } from './userService.js';
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from './firebaseConfig.js';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+
+// 이미지 업로드용 폴더
+const uploadDir = './uploads';
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+
+// 저장 설정
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname); // .jpg, .png 등
+    const basename = path.basename(file.originalname, ext);
+    cb(null, `${basename}-${Date.now()}${ext}`);
+  }
+});
+const upload = multer({ storage });
 
 const app = express();
 app.use(cors());
@@ -36,8 +58,14 @@ app.post('/api/save-closet-layout', async (req, res) => {
 // 옷 등록 API
 import { registerClothWithAI } from './clothService.js';
 
-app.post('/api/register-cloth', async (req, res) => {
-  const { userId, clothName, category, location, imagePath } = req.body;
+app.post('/api/register-cloth', upload.single('file'), async (req, res) => {
+  const { userId, clothName, category, location } = req.body;
+  const imagePath = req.file?.path;
+
+  if (!imagePath){
+    return res.status(400).json({error: '이미지 파일이 누락되었어요 😅'})
+  }
+
   try {
     await registerClothWithAI(userId, clothName, category, location, imagePath);
     res.status(200).json({ message: 'Cloth registered successfully' });
@@ -63,6 +91,7 @@ app.get('/api/get-clothes/:userId', async (req, res) => {
 
 //옷 삭제
 import { deleteCloth } from './clothService.js';
+import { error } from 'console';
 
 app.delete('/api/delete-cloth/:clothId', async (req, res) => {
   const { clothId } = req.params;
