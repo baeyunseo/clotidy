@@ -6,11 +6,10 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 
-
-const ClosetEntry = () => {
+const ClosetIndexScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
-  console.log("✅ ClosetEntry loaded");
+  console.log("✅ ClosetIndexScreen loaded");
 
   return (
     <View style={styles.container}>
@@ -43,4 +42,4 @@ const styles = StyleSheet.create({
   buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
 });
 
-export default ClosetEntry;
+export default ClosetIndexScreen;

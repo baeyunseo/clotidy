@@ -25,8 +25,11 @@ export type RootStackParamList = {
     layout_type: string;
   };
   CheckCloset: undefined;
-  RegisterCloth: undefined;
+  PhotoSelect: undefined;
+  RegisterCloth: { imageUri: string };  
   BlockClothesList: { location: string };
+  Alarm: undefined;
+  Closet: undefined;
 };
 
   

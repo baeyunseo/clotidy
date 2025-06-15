@@ -12,8 +12,6 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
-// ✅ userService import!
-import { saveClosetLayout } from '../lib/userService';
 import auth from '@react-native-firebase/auth';
 
 const closetOptions = [
@@ -48,38 +46,51 @@ export default function ClosetSelectScreen() {
   const [selected, setSelected] = useState('medium');
   const [saving, setSaving] = useState(false);
 
-  const handleSubmit = async () => {
-    const selectedOption = closetOptions.find((c) => c.id === selected);
-    if (!selectedOption) return;
+  // ...생략...
 
-    setSaving(true);
+const handleSubmit = async () => {
+  const selectedOption = closetOptions.find((c) => c.id === selected);
+  if (!selectedOption) return;
 
-    try {
-      const userId = auth().currentUser?.uid;
-      if (!userId) {
-        Alert.alert('로그인 정보 없음', '로그인 후 다시 시도하세요.');
-        setSaving(false);
-        return;
-      }
+  setSaving(true);
 
-      // ✅ userService 활용 (Firestore 직접 접근 X)
-      await saveClosetLayout(userId, {
-        layout_type: selectedOption.layout_type,
-        closet_layout: [],
-      });
-
-      navigation.navigate('ClosetGrid', {
-        rows: String(selectedOption.rows),
-        cols: String(selectedOption.cols),
-        layout_type: selectedOption.layout_type,
-      });
-    } catch (e) {
-      Alert.alert('오류', '옷장 선택 저장에 실패했습니다.');
-      console.error(e);
-    } finally {
+  try {
+    const userId = auth().currentUser?.uid;
+    if (!userId) {
+      Alert.alert('로그인 정보 없음', '로그인 후 다시 시도하세요.');
       setSaving(false);
+      return;
     }
-  };
+
+    // ✅ 요청 구조에 맞게 key명과 중첩 구조 수정
+    const res = await fetch('http://13.211.132.164:5000/api/save-closet-layout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: userId,
+        layoutData: {
+          layout_type: selectedOption.layout_type,
+          closet_layout: [],
+        },
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || '저장 실패');
+
+    navigation.navigate('ClosetGrid', {
+      rows: String(selectedOption.rows),
+      cols: String(selectedOption.cols),
+      layout_type: selectedOption.layout_type,
+    });
+  } catch (e) {
+    Alert.alert('오류', '옷장 선택 저장에 실패했습니다.');
+    console.error(e);
+  } finally {
+    setSaving(false);
+  }
+};
+
 
   return (
     <View style={styles.container}>
@@ -109,7 +120,7 @@ export default function ClosetSelectScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 24, backgroundColor: '#FFFEFA' },
-  title: { fontSize: 16, fontWeight: 'bold', color: '#', marginBottom: 20 },
+  title: { fontSize: 16, fontWeight: 'bold', marginBottom: 20 },
   row: { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },
   image: { width: 100, height: 140, marginRight: 16 },
   optionBox: {

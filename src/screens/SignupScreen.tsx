@@ -2,8 +2,7 @@
 
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import auth from "@react-native-firebase/auth";
-import { saveUserInfo } from '../lib/userService'; // 명세서 함수
+import auth from '@react-native-firebase/auth';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/types';
@@ -13,7 +12,7 @@ type NavigationProp = StackNavigationProp<RootStackParamList>;
 export default function SignupScreen() {
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
-  const [name, setName] = useState('');  // 변수명 명세서에 맞춤
+  const [name, setName] = useState('');
   const navigation = useNavigation<NavigationProp>();
 
   const handleSignup = async () => {
@@ -23,12 +22,32 @@ export default function SignupScreen() {
     }
 
     try {
-      // 1. 인증(계정 생성)
+      // 1. Firebase Auth로 회원 생성
       const res = await auth().createUserWithEmailAndPassword(email, pw);
-      const uid = res.user.uid;
+      const userId = res.user.uid;
 
-      // 2. 명세서 맞게 이름은 name!
-      await saveUserInfo(uid, name, email);
+      // 2. 서버에 회원 정보 저장 (userId로 맞춤!!)
+      const payload = {
+        userId,   // <-- userId (camelCase, 서버/백엔드와 반드시 합의 맞출 것!)
+        name,
+        email,
+      };
+
+      console.log("회원가입 API에 보낼 payload:", JSON.stringify(payload));
+
+      const response = await fetch("http://13.211.132.164:5000/api/save-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+      console.log("응답 status:", response.status);  
+      console.log("응답 body:", data);
+
+      if (!response.ok) {
+        throw new Error(data.error || "회원 정보 저장 실패");
+      }
 
       Alert.alert("회원가입 성공!");
       navigation.reset({
@@ -47,7 +66,7 @@ export default function SignupScreen() {
       <TextInput
         placeholder="이름"
         value={name}
-        onChangeText={setName}   // 명세서 변수명 name
+        onChangeText={setName}
         style={styles.input}
       />
       <TextInput

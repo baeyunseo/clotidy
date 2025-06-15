@@ -2,8 +2,6 @@
 
 import React, { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../lib/firebaseConfig';
 import auth from '@react-native-firebase/auth';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -13,24 +11,33 @@ export default function CheckClosetScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   useEffect(() => {
-  const check = async () => {
-    const user = auth().currentUser;
-    if (!user) {
-      navigation.replace('Login');
-      return;
-    }
-    const userRef = doc(db, 'users', user.uid);
-    const snap = await getDoc(userRef);
+    const check = async () => {
+      const user = auth().currentUser;
+      if (!user) {
+        navigation.replace('Login');
+        return;
+      }
+      try {
+        // 🔥 여기 엔드포인트 수정!
+        const res = await fetch(`http://13.211.132.164:5000/api/closet-layout/${user.uid}`);
+        if (!res.ok) throw new Error('옷장 정보 조회 실패');
+        const data = await res.json();
 
-    if (snap.exists() && snap.data().closet_layout?.length > 0) {
-      navigation.replace('Home');
-    } else {
-      navigation.replace('ClosetIndex');
-    }
-  };
-  check();
-}, []);
+        // 🔍 콘솔 확인 (디버깅용)
+        console.log('체크클로젯 closet_layout:', JSON.stringify(data, null, 2));
 
+        // closet_layout이 존재하고 1개 이상이면 Home, 아니면 ClosetIndex로 분기
+        if (data.closet_layout && Array.isArray(data.closet_layout) && data.closet_layout.length > 0) {
+          navigation.replace('Home');
+        } else {
+          navigation.replace('ClosetIndex');
+        }
+      } catch (e) {
+        navigation.replace('ClosetIndex');
+      }
+    };
+    check();
+  }, []);
 
   return (
     <View style={{flex:1, justifyContent:'center', alignItems:'center', backgroundColor:'#FFFEFA'}}>

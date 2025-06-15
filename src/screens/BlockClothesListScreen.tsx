@@ -1,67 +1,88 @@
 // src/screens/BlockClothesListScreen.tsx
+// 옷장 위치별 옷 목록 화면
 
 import React, { useEffect, useState } from "react";
-import { View, Text, FlatList, StyleSheet, ActivityIndicator } from "react-native";
-import { useRoute } from "@react-navigation/native";
-import axios from "axios"; // 실제 API 연동 시 사용
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, Alert, Image, TouchableOpacity } from "react-native";
+import { useRoute, useNavigation } from "@react-navigation/native";
+import axios from "axios";
+import auth from '@react-native-firebase/auth';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../navigation/types';
 
 type Cloth = {
   id: string;
-  cloth_name: string;
+  clothName: string;   // 명세 필드에 맞춤
   category: string;
-  last_worn?: string;
+  location?: string;
+  imagePath?: string;  // 명세 필드
+  // lastWorn?: string; // 필요 없으면 제거
 };
 
 export default function BlockClothesListScreen() {
-  const route = useRoute<any>();
-  const { location } = route.params;
+  const route = useRoute<{ key: string; name: string; params: { location: string } }>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const location = route.params?.location;
   const [clothes, setClothes] = useState<Cloth[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // TODO: 실제로는 location(블록이름) 필터링 쿼리로 데이터 가져오기
-    // 지금은 더미 데이터로 테스트
-    setTimeout(() => {
-      if (location === "상의칸") {
-        setClothes([
-          { id: "1", cloth_name: "회색 패딩", category: "패딩", last_worn: "2024-12-01T10:00:00Z" },
-          { id: "2", cloth_name: "검정 니트", category: "니트", last_worn: "2024-12-05T08:00:00Z" }
-        ]);
-      } else if (location === "하의칸") {
-        setClothes([
-          { id: "3", cloth_name: "청바지", category: "바지", last_worn: "2024-11-22T14:20:00Z" }
-        ]);
-      } else {
+    const fetchClothes = async () => {
+      setLoading(true);
+      try {
+        const uid = auth().currentUser?.uid;
+        if (!uid) throw new Error("로그인 필요");
+        // 1. 전체 옷 불러오기
+        const res = await axios.get(`http://13.211.132.164:5000/api/get-clothes/${uid}`);
+        // 2. location으로 필터
+        const filtered = (res.data || []).filter(
+          (item: Cloth) => item.location === location
+        );
+        setClothes(filtered);
+      } catch (err: any) {
         setClothes([]);
+        Alert.alert('에러', err.message || '옷 목록을 불러올 수 없습니다.');
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    }, 500);
+    };
+    fetchClothes();
   }, [location]);
 
   const renderItem = ({ item }: { item: Cloth }) => (
-    <View style={styles.itemCard}>
-      <Text style={styles.name}>{item.cloth_name}</Text>
+    <TouchableOpacity
+      style={styles.itemCard}
+      activeOpacity={0.85}
+      onPress={() => {
+        // 상세화면 연결 등 필요 시
+      }}
+    >
+      {item.imagePath ? (
+        <Image source={{ uri: item.imagePath }} style={styles.img} />
+      ) : (
+        <View style={[styles.img, { backgroundColor: '#E6EAE8', justifyContent: 'center', alignItems: 'center' }]}>
+          <Text style={{ color: '#aaa', fontSize: 13 }}>No Image</Text>
+        </View>
+      )}
+      <Text style={styles.name}>{item.clothName}</Text>
       <Text style={styles.category}>{item.category}</Text>
-      <Text style={styles.lastWorn}>
-        마지막 착용일: {item.last_worn ? item.last_worn.slice(0, 10) : "정보 없음"}
-      </Text>
-    </View>
+      {/* lastWorn 등은 필요 없으면 뺄 것 */}
+    </TouchableOpacity>
   );
 
   return (
     <View style={styles.container}>
       <Text style={styles.header}>{location} 옷 리스트</Text>
       {loading ? (
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color="#6AC892" style={{ marginTop: 40 }} />
       ) : clothes.length === 0 ? (
-        <Text style={{ textAlign: "center", marginTop: 30 }}>등록된 옷이 없습니다.</Text>
+        <Text style={{ textAlign: "center", marginTop: 30, color: "#888" }}>등록된 옷이 없습니다.</Text>
       ) : (
         <FlatList
           data={clothes}
           renderItem={renderItem}
           keyExtractor={item => item.id}
           numColumns={2}
-          contentContainerStyle={{ padding: 20 }}
+          contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
         />
       )}
     </View>
@@ -76,12 +97,19 @@ const styles = StyleSheet.create({
     backgroundColor: "#F8F8F8",
     margin: 8,
     borderRadius: 16,
-    padding: 18,
+    padding: 16,
     alignItems: "center",
-    minWidth: 130,
-    maxWidth: 170,
+    minWidth: 140,
+    maxWidth: 180,
+    elevation: 2,
   },
-  name: { fontWeight: "bold", fontSize: 16, marginBottom: 4, color: "#222" },
-  category: { color: "#377", fontSize: 14, marginBottom: 6 },
-  lastWorn: { fontSize: 13, color: "#888" },
+  img: {
+    width: 90,
+    height: 90,
+    borderRadius: 12,
+    marginBottom: 8,
+    backgroundColor: "#eaeaea",
+  },
+  name: { fontWeight: "bold", fontSize: 16, marginBottom: 2, color: "#222", textAlign: "center" },
+  category: { color: "#377", fontSize: 13, marginBottom: 4, textAlign: "center" },
 });

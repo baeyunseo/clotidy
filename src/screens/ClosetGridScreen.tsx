@@ -1,23 +1,37 @@
+// src/screens/ClosetGridScreen.tsx
+
 import React, { useState, useEffect } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Dimensions,
-  Modal,
-  TextInput,
-  Alert,
+  View, Text, TouchableOpacity, StyleSheet, Dimensions, Modal, TextInput, Alert,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../navigation/types';
 import auth from '@react-native-firebase/auth';
-import { saveClosetLayout } from '../lib/userService';
 
 const screenWidth = Dimensions.get('window').width;
 const sidePadding = 40;
+
+// 💡 백엔드 API 호출 (Firestore 명세에 맞춰)
+// 서버에 userId와 layoutData(= { layout_type, closet_layout })를 보냄
+async function saveClosetLayout(userId: string, layoutData: any) {
+  const payload = {
+    userId,       // 🔥 반드시 camelCase로!
+    layoutData,   // 🔥 { layout_type, closet_layout } 구조로!
+  };
+  console.log("옷장 저장 payload:", JSON.stringify(payload, null, 2));
+  const res = await fetch('http://13.211.132.164:5000/api/save-closet-layout', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || '옷장 저장 실패');
+  }
+  return res.json();
+}
 
 export default function ClosetGridScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -104,6 +118,7 @@ export default function ClosetGridScreen() {
     );
   };
 
+  // 💡 저장 시 coords를 [{x, y}]로 변환해서 보내기!
   const handleComplete = async () => {
     const userId = auth().currentUser?.uid;
     if (!userId) {
@@ -117,13 +132,17 @@ export default function ClosetGridScreen() {
 
     setSaving(true);
     try {
-      await saveClosetLayout(userId, {
+      // Firestore와 동일하게 구조 변환!
+      const layoutData = {
         layout_type,
         closet_layout: namedBlocks.map(block => ({
           name: block.name,
-          coords: block.coords.map(([x, y]) => ({ x, y })),
+          coords: block.coords.map(([x, y]) => ({ x, y })), // 🔥 [ [1,2], ... ] → [ {x:1, y:2}, ... ]
         })),
-      });
+      };
+
+      await saveClosetLayout(userId, layoutData);
+
       Alert.alert('저장 완료', '옷장 구성이 저장되었습니다.', [
         { text: '확인', onPress: () => navigation.navigate('Home' as never) },
       ]);
@@ -148,7 +167,7 @@ export default function ClosetGridScreen() {
           position: 'relative',
         }}>
         {Array.from({ length: rowCount }).map((_, rowIdx) => {
-          const row = rowCount - 1 - rowIdx; // 반전된 row index
+          const row = rowCount - 1 - rowIdx;
           return (
             <View key={row} style={{ flexDirection: 'row' }}>
               {Array.from({ length: colCount }).map((_, col) => {

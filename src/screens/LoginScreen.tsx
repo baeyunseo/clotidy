@@ -17,7 +17,10 @@ export default function LoginScreen({ navigation }: any) {
 
   const handleLogin = async () => {
     try {
-      const res = await auth().signInWithEmailAndPassword(email, pw);
+      // 1. Firebase Auth 로그인
+      await auth().signInWithEmailAndPassword(email, pw);
+
+      // 2. 분기는 CheckClosetScreen에서만
       navigation.replace('CheckCloset');
     } catch (e: any) {
       Alert.alert('로그인 오류', e.message);
@@ -27,7 +30,6 @@ export default function LoginScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>로그인</Text>
-
       <TextInput
         style={styles.input}
         placeholder="이메일"
@@ -42,11 +44,9 @@ export default function LoginScreen({ navigation }: any) {
         onChangeText={setPw}
         secureTextEntry
       />
-
       <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
         <Text style={styles.loginText}>로그인</Text>
       </TouchableOpacity>
-
       <TouchableOpacity
         style={styles.signupButton}
         onPress={() => navigation.replace('Signup')}>

@@ -14,22 +14,21 @@ import { RootStackParamList } from './src/navigation/types';
 import LoginScreen from './src/screens/LoginScreen';
 import SignupScreen from './src/screens/SignupScreen';
 import HomeScreen from './src/screens/HomeScreen';
-import ClosetIndexScreen from './src/screens/ClosetIndexScreen'; // 옷장 인트로(등록 시작)
+import ClosetIndexScreen from './src/screens/ClosetIndexScreen';
 import ClosetSelectScreen from './src/screens/ClosetSelectScreen';
 import ClosetGridScreen from './src/screens/ClosetGridScreen';
 import CheckClosetScreen from './src/screens/CheckClosetScreen';
 import SplashScreen from './src/screens/SplashScreen';
 import RegisterClothScreen from './src/screens/RegisterClothScreen';
 import BlockClothesListScreen from './src/screens/BlockClothesListScreen';
-
-
+// import ClosetScreen from './src/screens/ClosetScreen';    // 옷장 화면 (만약 별도 필요)
+// import AlarmScreen from './src/screens/AlarmScreen';      // 알람/리마인드 화면 (만약 별도 필요)
 
 const Stack = createStackNavigator<RootStackParamList>();
 
 export default function App() {
   return (
     <NavigationContainer>
-      
       <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Splash" component={SplashScreen} />
         <Stack.Screen name="CheckCloset" component={CheckClosetScreen} />
@@ -39,12 +38,11 @@ export default function App() {
         <Stack.Screen name="ClosetIndex" component={ClosetIndexScreen} />
         <Stack.Screen name="ClosetSelect" component={ClosetSelectScreen} />
         <Stack.Screen name="ClosetGrid" component={ClosetGridScreen} />
-          <Stack.Screen name="RegisterCloth" component={RegisterClothScreen} />
-          <Stack.Screen name="BlockClothesList" component={BlockClothesListScreen} />
-
-
+        <Stack.Screen name="RegisterCloth" component={RegisterClothScreen} />
+        <Stack.Screen name="BlockClothesList" component={BlockClothesListScreen} />
+        {/* <Stack.Screen name="Closet" component={ClosetScreen} />      {/* 추가 */}
+        {/* <Stack.Screen name="Alarm" component={AlarmScreen} />        {/* 추가 */}
       </Stack.Navigator>
-
     </NavigationContainer>
   );
 }
