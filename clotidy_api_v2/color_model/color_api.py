@@ -138,6 +138,6 @@ async def extract_colors(file: UploadFile = File(...)):
     return {
         "dominant_rgb": dominant_rgb,
         "dominant_hex": dominant_hex,
-        "recommended_color": simple_color,
+        "color": simple_color,
         "sub_rgb": sub_rgb
     }

@@ -71,7 +71,7 @@ uvicorn app:app --host 0.0.0.0 --port 5050
 {
   "dominant_rgb": [200, 50, 50],
   "dominant_hex": "#c83232",
-  "recommended_color": "Brick Red",
+  "color": "Brick Red",
   "sub_rgb": [245, 222, 179]
 }
 ```
