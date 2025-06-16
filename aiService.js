@@ -18,7 +18,7 @@ export async function fetchColorFromAI(imagePath) {
 
   try {
     console.log("🎯 AI 분석 요청: 이미지 전송 중...");
-    const response = await axios.post("http://54.79.167.144:8000/extract-color", formData, {
+    const response = await axios.post("http://54.79.167.144:8000/extract-color/", formData, {
       headers: {
         ...formData.getHeaders()
       }
