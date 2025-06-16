@@ -21,7 +21,7 @@ async function saveClosetLayout(userId: string, layoutData: any) {
     layoutData,   // 🔥 { layout_type, closet_layout } 구조로!
   };
   console.log("옷장 저장 payload:", JSON.stringify(payload, null, 2));
-  const res = await fetch('http://13.211.132.164:5000/api/save-closet-layout', {
+  const res = await fetch('http://54.79.167.144:5000/api/save-closet-layout', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),

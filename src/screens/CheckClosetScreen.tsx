@@ -7,7 +7,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 
-const BASE_URL = "http://3.24.109.93:5000"; // 최신 서버 IP + 포트
+const BASE_URL = "http://54.79.167.144:5000"; // 최신 서버 IP + 포트
 
 export default function CheckClosetScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();

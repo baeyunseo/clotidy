@@ -1,30 +1,27 @@
+// src/screens/RegisterClothScreen.tsx
+// 옷 등록 화면
+
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, Image, StyleSheet, Alert, ScrollView,
-  ActivityIndicator, TouchableOpacity, Platform
+  ActivityIndicator, TouchableOpacity
 } from 'react-native';
 import { launchCamera, launchImageLibrary, ImagePickerResponse } from 'react-native-image-picker';
 import axios from 'axios';
 import auth from '@react-native-firebase/auth';
 import RNFS from 'react-native-fs';
 
-const BASE_URL = 'http://3.24.109.93:5000';
-
-type DropDownProps = {
-  value: string;
-  list: string[];
-  placeholder: string;
-  onSelect: (v: string) => void;
-};
-
-const DropDown = ({ value, list, placeholder, onSelect }: DropDownProps) => (
+// DropDown (공통 선택형 팝업)
+const DropDown = ({
+  value, list, placeholder, onSelect
+}: { value: string, list: string[], placeholder: string, onSelect: (v: string) => void }) => (
   <TouchableOpacity
     style={[styles.input, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
     onPress={() => {
       Alert.alert(
         placeholder, '',
         [
-          ...list.map((v: string) => ({ text: v, onPress: () => onSelect(v) })),
+          ...list.map(v => ({ text: v, onPress: () => onSelect(v) })),
           { text: '취소', onPress: () => {}, style: 'cancel' }
         ]
       );
@@ -34,36 +31,35 @@ const DropDown = ({ value, list, placeholder, onSelect }: DropDownProps) => (
   </TouchableOpacity>
 );
 
-type NavigationProp = {
-  goBack: () => void;
-};
-
-export default function RegisterClothScreen({ navigation }: { navigation: NavigationProp }) {
+export default function RegisterClothScreen({ navigation }: any) {
   const [imageUri, setImageUri] = useState<string>('');
-  const [imageType, setImageType] = useState<string>('image/jpeg');
-  const [imageName, setImageName] = useState<string>('cloth.jpg');
-  const [clothName, setClothName] = useState<string>('');
-  const [location, setLocation] = useState<string>('');
-  const [uploading, setUploading] = useState<boolean>(false);
+  const [clothName, setClothName] = useState('');
+  const [category, setCategory] = useState('');
+  const [location, setLocation] = useState('');
+  const [uploading, setUploading] = useState(false);
   const [blockList, setBlockList] = useState<string[]>([]);
 
+  // 1. 서버에서 블록(보관공간) 리스트 조회
   useEffect(() => {
     const fetchBlockList = async () => {
       const userId = auth().currentUser?.uid;
       if (!userId) return;
       try {
-        const res = await fetch(`${BASE_URL}/api/closet-layout/${userId}`);
+        const res = await fetch(`http://54.79.167.144:5000/api/closet-layout/${userId}`);
         if (!res.ok) throw new Error('블록 정보 조회 실패');
         const data = await res.json();
-        setBlockList((data.closet_layout?.map((block: any) => block.name) as string[]) || []);
+        setBlockList(data.closet_layout?.map((block: any) => block.name) || []);
+        console.log('📦 closet_layout:', data.closet_layout);
       } catch (e) {
         setBlockList([]);
         Alert.alert("블록 정보 조회 실패", "옷장 구성을 먼저 완료하세요.");
+        console.log('❌ closet_layout fetch error:', e);
       }
     };
     fetchBlockList();
   }, []);
 
+  // 2. 사진 선택 팝업
   const handleSelectPhoto = () => {
     Alert.alert('사진 선택', '', [
       { text: '카메라', onPress: () => pickImage('camera') },
@@ -72,6 +68,22 @@ export default function RegisterClothScreen({ navigation }: { navigation: Naviga
     ]);
   };
 
+   // 👇👇👇 추가된 content uri 처리 함수
+  const handleContentUri = async (uri: string): Promise<string> => {
+    if (!uri.startsWith('content://')) return uri;
+    // RNFS.TemporaryDirectoryPath가 /data/user/0/~~/cache/ 형태 (플랫폼별 다름)
+    const destPath = `${RNFS.TemporaryDirectoryPath}photo_${Date.now()}.jpg`;
+    try {
+      await RNFS.copyFile(uri, destPath);
+      return 'file://' + destPath;
+    } catch (e) {
+      console.log('❌ 파일 복사 실패:', e);
+      Alert.alert('이미지 복사 오류', '사진 파일을 읽을 수 없습니다.');
+      throw e;
+    }
+  };
+
+// 3. 이미지 가져오기 (여기만 확실히 고침!!)
   const pickImage = async (type: 'camera' | 'gallery') => {
     const res: ImagePickerResponse = await (type === 'camera' ? launchCamera : launchImageLibrary)({ mediaType: 'photo' });
     if (res.didCancel) return;
@@ -80,63 +92,67 @@ export default function RegisterClothScreen({ navigation }: { navigation: Naviga
       return;
     }
     if (res.assets && res.assets.length > 0) {
-      let { uri, type: mimeType, fileName } = res.assets[0];
-      if (!uri) {
-        Alert.alert('이미지 오류', '이미지 경로를 가져올 수 없습니다.');
-        return;
-      }
-      if (Platform.OS === 'android' && uri.startsWith('content://')) {
+      let uri = res.assets[0].uri || '';
+      if (uri.startsWith('content://')) {
         try {
-          const destPath = `${RNFS.CachesDirectoryPath}/cloth_${Date.now()}.jpg`;
-          await RNFS.copyFile(uri, destPath);
-          uri = destPath;
-          mimeType = 'image/jpeg';
-          fileName = `cloth_${Date.now()}.jpg`;
+          uri = await handleContentUri(uri);
         } catch (e) {
-          Alert.alert('이미지 복사 실패', 'Android에서 이미지 파일 변환에 실패했습니다.');
           return;
         }
       }
       setImageUri(uri);
-      setImageType(mimeType || 'image/jpeg');
-      setImageName(fileName || `cloth_${Date.now()}.jpg`);
+      console.log('📸 이미지 URI:', uri);
     }
   };
 
+  // 4. 등록 API (FormData로 전송)
   const handleRegister = async () => {
     try {
       const userId = auth().currentUser?.uid;
+      console.log('🔑 userId:', userId);
+      console.log('📦 clothName:', clothName);
+      console.log('📦 category:', category);
+      console.log('📦 location:', location);
+      console.log('📦 imageUri:', imageUri);
+
       if (!userId) throw new Error('로그인 필요');
       if (!imageUri) throw new Error('사진 없음');
-      if (!clothName || !location) throw new Error('필수 정보 누락');
+      if (!clothName || !category || !location) throw new Error('필수 정보 누락');
       setUploading(true);
 
-      // file:// prefix 제거
-      const fileUri = imageUri.startsWith('file://') ? imageUri.replace('file://', '') : imageUri;
-
+      // FormData로 전송, key는 반드시 'file'
       const formData = new FormData();
       formData.append('userId', userId);
       formData.append('clothName', clothName);
+      formData.append('category', category);
       formData.append('location', location);
       formData.append('file', {
-        uri: fileUri,
-        type: imageType,
-        name: imageName,
-      });
+        uri: imageUri,
+        name: 'cloth.jpg',
+        type: 'image/jpeg',
+      } as any);
 
-      // 반드시 prefix 제거된 fileUri만 출력
-      console.log('폼데이터 fileUri:', fileUri, 'type:', imageType, 'name:', imageName);
-
-      const resp = await axios.post(`${BASE_URL}/api/register-cloth`, formData);
-
-      Alert.alert('등록 완료', resp.data?.message || '등록 성공!');
-      navigation.goBack();
-    } catch (e: unknown) {
-      if (e instanceof Error) {
-        Alert.alert('등록 실패', (e as any).response?.data?.error || e.message || '서버 오류');
-      } else {
-        Alert.alert('등록 실패', '알 수 없는 오류');
+      // FormData 내부 내용 로그 (확인용)
+      // RN FormData에는 ._parts가 있음 (디버깅용, 배포 전 삭제 가능)
+      if ((formData as any)._parts) {
+        for (const pair of (formData as any)._parts) {
+          console.log('📝 FormData:', pair[0], pair[1]);
+        }
       }
+
+      // POST 요청
+      console.log('🚀 API 요청 전송 시작');
+      const resp = await axios.post('http://54.79.167.144:5000/api/register-cloth', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      console.log('✅ 서버 응답:', resp.data);
+
+      Alert.alert('등록 완료', resp.data?.message || '');
+      navigation.goBack();
+    } catch (e: any) {
+      // 서버에서 오는 에러 메시지 콘솔 확인
+      console.log('❌ 등록 실패:', e.response?.data || e);
+      Alert.alert('등록 실패', e.response?.data?.error || e.message || '서버 오류');
     } finally {
       setUploading(false);
     }
@@ -155,6 +171,13 @@ export default function RegisterClothScreen({ navigation }: { navigation: Naviga
         </TouchableOpacity>
         <DropDown value={location} list={blockList} placeholder="보관 공간 선택" onSelect={setLocation} />
         <TextInput value={clothName} onChangeText={setClothName} style={styles.input} placeholder="옷 이름" />
+                  <TextInput
+            value={category}
+            onChangeText={setCategory}
+            style={styles.input}
+            placeholder="카테고리 (예: 상의, 하의, 신발 등)"
+          />
+
         <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={uploading}>
           <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>{uploading ? '등록 중...' : '+ 등록'}</Text>
         </TouchableOpacity>

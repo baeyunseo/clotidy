@@ -20,7 +20,13 @@ type Cloth = {
   imageUrl?: string;
 };
 
-const BASE_URL = 'http://3.24.109.93:5000';
+const BASE_URL = "http://54.79.167.144:5000";
+
+function getImageUrl(imageUrl: string | undefined | null) {
+  if (!imageUrl) return "";
+  if (imageUrl.startsWith("http")) return imageUrl;
+  return `${BASE_URL}/${imageUrl.replace(/^\//, "")}`;
+}
 
 export default function BlockClothesListScreen() {
   const route = useRoute<{ key: string; name: string; params: { location: string } }>();
@@ -35,15 +41,17 @@ export default function BlockClothesListScreen() {
       try {
         const uid = auth().currentUser?.uid;
         if (!uid) throw new Error("로그인 필요");
-
-        const res = await axios.get(`${BASE_URL}/api/get-clothes/${uid}`);
+        const res = await axios.get(`http://54.79.167.144:5000/api/get-clothes/${uid}`);
 
         console.log("🔥 API 전체 응답:", JSON.stringify(res.data, null, 2));
         console.log("🔥 location param:", location);
 
+        // 필터하면서 각 row의 location 비교 콘솔
         const filtered = (res.data || []).filter((item: any, idx: number) => {
-          const match = (item.location ?? '').trim() === location.trim();
-          console.log(`🔥 [${idx}] item.location: "${item.location}" / match:`, match);
+          const locA = (item.location ?? '').trim();
+          const locB = (location ?? '').trim();
+          const match = locA === locB;
+          console.log(`🔥 [${idx}] item.location: "${locA}" / target: "${locB}" / match:`, match);
           return match;
         }).map((item: any) => {
           const mapped = {
@@ -75,11 +83,10 @@ export default function BlockClothesListScreen() {
     <TouchableOpacity
       style={styles.itemCard}
       activeOpacity={0.85}
-      // 향후 상세화면 연결 시 주석 해제
-      // onPress={() => navigation.navigate('ClothDetail', { clothId: item.id })}
+      // onPress={() => { ... }}
     >
       {item.imageUrl && item.imageUrl !== "" && item.imageUrl !== "null" ? (
-        <Image source={{ uri: item.imageUrl }} style={styles.img} />
+        <Image source={{ uri: getImageUrl(item.imageUrl) }} style={styles.img} />
       ) : (
         <View style={[styles.img, { backgroundColor: '#E6EAE8', justifyContent: 'center', alignItems: 'center' }]}>
           <Text style={{ color: '#aaa', fontSize: 13 }}>No Image</Text>

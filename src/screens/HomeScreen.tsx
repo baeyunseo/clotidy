@@ -1,22 +1,21 @@
 // src/screens/HomeScreen.tsx
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, StatusBar, Dimensions,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import auth from "@react-native-firebase/auth";
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 
-// BlockType 정의
 type BlockType = {
   name: string;
   coords: { x: number; y: number }[];
   items?: number;
 };
 
-const BASE_URL = "http://3.24.109.93:5000"; // 최신 퍼블릭 IP로 변경
+const BASE_URL = "http://54.79.167.144:5000";
 
 export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState<"closet" | "list">("closet");
@@ -30,85 +29,77 @@ export default function HomeScreen() {
   const gridWidth = Dimensions.get("window").width - 40;
   const cellSize = gridWidth / colCount;
 
-  useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const uid = auth().currentUser?.uid;
-        console.log("currentUser uid:", uid);
-        if (!uid) return;
+  // **변경: useFocusEffect 사용**
+  useFocusEffect(
+    useCallback(() => {
+      const fetchUserData = async () => {
+        try {
+          const uid = auth().currentUser?.uid;
+          if (!uid) return;
 
-        // 유저 이름 요청
-        const userRes = await fetch(`${BASE_URL}/api/user/${uid}`);
-        console.log("userRes status:", userRes.status);
-        if (!userRes.ok) throw new Error('유저 정보 조회 실패');
-        const userData = await userRes.json();
-        console.log("userData:", userData);
-        if (userData.name) setUserName(userData.name);
+          // 1. 유저 이름 요청
+          const userRes = await fetch(`${BASE_URL}/api/user/${uid}`);
+          if (!userRes.ok) throw new Error('유저 정보 조회 실패');
+          const userData = await userRes.json();
+          if (userData.name) setUserName(userData.name);
 
-        // 옷장 레이아웃 요청
-        const closetRes = await fetch(`${BASE_URL}/api/closet-layout/${uid}`);
-        console.log("closetRes status:", closetRes.status);
-        if (!closetRes.ok) throw new Error('옷장 정보 조회 실패');
-        const closetData = await closetRes.json();
-        console.log("closetData:", JSON.stringify(closetData, null, 2));
+          // 2. 옷장 레이아웃 요청
+          const closetRes = await fetch(`${BASE_URL}/api/closet-layout/${uid}`);
+          if (!closetRes.ok) throw new Error('옷장 정보 조회 실패');
+          const closetData = await closetRes.json();
 
-        if (
-          closetData.closet_layout &&
-          Array.isArray(closetData.closet_layout) &&
-          closetData.closet_layout.length > 0
-        ) {
-          const firstBlock = closetData.closet_layout[0];
+          // 3. 옷 전체 데이터 요청
+          const clothesRes = await fetch(`${BASE_URL}/api/get-clothes/${uid}`);
+          if (!clothesRes.ok) throw new Error("옷 데이터 조회 실패");
+          const clothesData = await clothesRes.json();
+
+          // 4. 블록별 아이템 개수 매칭
           if (
-            !firstBlock ||
-            !Array.isArray(firstBlock.coords) ||
-            !firstBlock.coords[0] ||
-            typeof firstBlock.coords[0].x !== 'number' ||
-            typeof firstBlock.coords[0].y !== 'number'
+            closetData.closet_layout &&
+            Array.isArray(closetData.closet_layout) &&
+            closetData.closet_layout.length > 0
           ) {
-            console.warn("coords가 올바른 구조가 아닙니다!", firstBlock.coords);
-          }
-
-          setClosetBlocks(closetData.closet_layout);
-
-          // 총 아이템 수 계산
-          const total = closetData.closet_layout.reduce(
-            (sum: number, block: BlockType) => sum + (block.items || 0),
-            0
-          ) ?? 0;
-          setClothingCount(total);
-
-          // 레이아웃 크기 설정
-          if (closetData.layout_type) {
-            const [cols, rows] = closetData.layout_type.split("x").map(Number);
-            setColCount(cols || 3);
-            setRowCount(rows || 4);
-          } else {
-            let maxX = 0, maxY = 0;
-            closetData.closet_layout.forEach((block: BlockType) => {
-              block.coords.forEach(({ x, y }) => {
-                if (x > maxX) maxX = x;
-                if (y > maxY) maxY = y;
-              });
+            const updatedBlocks = closetData.closet_layout.map((block: BlockType) => {
+              const itemCount = clothesData.filter((item: any) =>
+                (item.location ?? '').trim() === (block.name ?? '').trim()
+              ).length;
+              return { ...block, items: itemCount };
             });
-            setRowCount(maxX + 1);
-            setColCount(maxY + 1);
+
+            setClosetBlocks(updatedBlocks);
+            setClothingCount(clothesData.length);
+
+            // 레이아웃 크기 설정
+            if (closetData.layout_type) {
+              const [cols, rows] = closetData.layout_type.split("x").map(Number);
+              setColCount(cols || 3);
+              setRowCount(rows || 4);
+            } else {
+              let maxX = 0, maxY = 0;
+              closetData.closet_layout.forEach((block: BlockType) => {
+                block.coords.forEach(({ x, y }) => {
+                  if (x > maxX) maxX = x;
+                  if (y > maxY) maxY = y;
+                });
+              });
+              setRowCount(maxX + 1);
+              setColCount(maxY + 1);
+            }
+          } else {
+            setClosetBlocks([]);
+            setClothingCount(0);
+            setRowCount(4);
+            setColCount(3);
           }
-        } else {
-          setClosetBlocks([]);
-          setClothingCount(0);
-          setRowCount(4);
-          setColCount(3);
-          console.warn("closet_layout이 없습니다. closetData:", closetData);
+        } catch (err) {
+          console.error("오류 발생:", err);
         }
-      } catch (err) {
-        console.error("오류 발생:", err);
-      }
-    };
+      };
 
-    fetchUserData();
-  }, []);
+      fetchUserData();
+    }, [])
+  );
 
-  // 블록 위치 계산 함수
   const getBlockRect = (block: BlockType) => {
     if (!block.coords || block.coords.length === 0) return {
       top: 0, left: 0, width: cellSize, height: cellSize, minRow: 0, minCol: 0
