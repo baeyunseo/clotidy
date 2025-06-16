@@ -20,6 +20,8 @@ type Cloth = {
   imageUrl?: string;
 };
 
+const BASE_URL = 'http://3.24.109.93:5000';
+
 export default function BlockClothesListScreen() {
   const route = useRoute<{ key: string; name: string; params: { location: string } }>();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -33,17 +35,17 @@ export default function BlockClothesListScreen() {
       try {
         const uid = auth().currentUser?.uid;
         if (!uid) throw new Error("로그인 필요");
-        const res = await axios.get(`http://13.211.132.164:5000/api/get-clothes/${uid}`);
+
+        const res = await axios.get(`${BASE_URL}/api/get-clothes/${uid}`);
 
         console.log("🔥 API 전체 응답:", JSON.stringify(res.data, null, 2));
         console.log("🔥 location param:", location);
 
-        // 필터하면서 각 row의 location 비교 콘솔
         const filtered = (res.data || []).filter((item: any, idx: number) => {
-          console.log(`🔥 [${idx}] item.location: "${item.location}" / target: "${location}" / match:`, (item.location ?? '') === location);
-          return (item.location ?? '') === location;
+          const match = (item.location ?? '').trim() === location.trim();
+          console.log(`🔥 [${idx}] item.location: "${item.location}" / match:`, match);
+          return match;
         }).map((item: any) => {
-          // 타입 변환 과정도 로그
           const mapped = {
             id: item.id,
             clothName: item.cloth_name ?? "",
@@ -73,7 +75,8 @@ export default function BlockClothesListScreen() {
     <TouchableOpacity
       style={styles.itemCard}
       activeOpacity={0.85}
-      // onPress={() => { ... }}
+      // 향후 상세화면 연결 시 주석 해제
+      // onPress={() => navigation.navigate('ClothDetail', { clothId: item.id })}
     >
       {item.imageUrl && item.imageUrl !== "" && item.imageUrl !== "null" ? (
         <Image source={{ uri: item.imageUrl }} style={styles.img} />

@@ -16,6 +16,8 @@ type BlockType = {
   items?: number;
 };
 
+const BASE_URL = "http://3.24.109.93:5000"; // 최신 퍼블릭 IP로 변경
+
 export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState<"closet" | "list">("closet");
   const [userName, setUserName] = useState("사용자");
@@ -32,23 +34,24 @@ export default function HomeScreen() {
     const fetchUserData = async () => {
       try {
         const uid = auth().currentUser?.uid;
+        console.log("currentUser uid:", uid);
         if (!uid) return;
 
-        // ✅ 1. 유저 이름 GET
-        const userRes = await fetch(`http://13.211.132.164:5000/api/user/${uid}`);
+        // 유저 이름 요청
+        const userRes = await fetch(`${BASE_URL}/api/user/${uid}`);
+        console.log("userRes status:", userRes.status);
         if (!userRes.ok) throw new Error('유저 정보 조회 실패');
         const userData = await userRes.json();
+        console.log("userData:", userData);
         if (userData.name) setUserName(userData.name);
 
-        // ✅ 2. 옷장 레이아웃 GET (주소 변경!)
-        const closetRes = await fetch(`http://13.211.132.164:5000/api/closet-layout/${uid}`);
+        // 옷장 레이아웃 요청
+        const closetRes = await fetch(`${BASE_URL}/api/closet-layout/${uid}`);
+        console.log("closetRes status:", closetRes.status);
         if (!closetRes.ok) throw new Error('옷장 정보 조회 실패');
         const closetData = await closetRes.json();
+        console.log("closetData:", JSON.stringify(closetData, null, 2));
 
-        // 🔥 1) 데이터 콘솔로 확인!
-        console.log("받아온 closetData:", JSON.stringify(closetData, null, 2));
-
-        // 🔥 2) closet_layout 체크
         if (
           closetData.closet_layout &&
           Array.isArray(closetData.closet_layout) &&
@@ -67,21 +70,19 @@ export default function HomeScreen() {
 
           setClosetBlocks(closetData.closet_layout);
 
-          // 총 아이템 수
+          // 총 아이템 수 계산
           const total = closetData.closet_layout.reduce(
             (sum: number, block: BlockType) => sum + (block.items || 0),
             0
           ) ?? 0;
           setClothingCount(total);
 
-          // 레이아웃 크기
+          // 레이아웃 크기 설정
           if (closetData.layout_type) {
-            // layout_type: "3x4" → cols=3, rows=4
             const [cols, rows] = closetData.layout_type.split("x").map(Number);
             setColCount(cols || 3);
             setRowCount(rows || 4);
           } else {
-            // layout_type 없을 경우: 최대 좌표에서 추정
             let maxX = 0, maxY = 0;
             closetData.closet_layout.forEach((block: BlockType) => {
               block.coords.forEach(({ x, y }) => {
@@ -93,7 +94,6 @@ export default function HomeScreen() {
             setColCount(maxY + 1);
           }
         } else {
-          // 🔥 closet_layout 없음
           setClosetBlocks([]);
           setClothingCount(0);
           setRowCount(4);
@@ -108,7 +108,7 @@ export default function HomeScreen() {
     fetchUserData();
   }, []);
 
-  // 블록 위치, 크기 계산
+  // 블록 위치 계산 함수
   const getBlockRect = (block: BlockType) => {
     if (!block.coords || block.coords.length === 0) return {
       top: 0, left: 0, width: cellSize, height: cellSize, minRow: 0, minCol: 0
@@ -122,7 +122,6 @@ export default function HomeScreen() {
     const maxCol = Math.max(...cols);
 
     return {
-      // row(행)는 x, col(열)는 y
       top: (rowCount - maxRow - 1) * cellSize,
       left: minCol * cellSize,
       width: (maxCol - minCol + 1) * cellSize,
@@ -154,7 +153,7 @@ export default function HomeScreen() {
 
         {/* 블록형 옷장 */}
         <View style={[styles.gridAbsoluteBox, { width: gridWidth, height: rowCount * cellSize }]}>
-          {/* 1. 기본 그리드 배경 */}
+          {/* 기본 그리드 */}
           {Array.from({ length: rowCount }).map((_, rowIdx) =>
             Array.from({ length: colCount }).map((_, colIdx) => (
               <View
@@ -173,12 +172,11 @@ export default function HomeScreen() {
             ))
           )}
 
-          {/* 2. 블록 렌더링 */}
+          {/* 블록 렌더링 */}
           {closetBlocks.map((block, i) => {
             const { top, left, width, height } = getBlockRect(block);
 
             if (!block.coords || block.coords.length === 0) {
-              // 블록 데이터에 coords가 비어있는 경우 스킵
               return null;
             }
 
