@@ -34,6 +34,9 @@ app.use(cors());
 
 // ✅ 파일 업로드 라우트 먼저 선언 (multipart/form-data 문제 방지)
 app.post('/api/register-cloth', upload.single('file'), async (req, res) => {
+  console.log('🎯 req.file:', req.file);     // multer가 파싱한 업로드 파일 정보
+  console.log('🎯 req.body:', req.body);     // 함께 전송된 텍스트 데이터
+  
   const { userId, clothName, category, location } = req.body;
   const imagePath = req.file?.path;
 
