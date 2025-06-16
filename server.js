@@ -36,7 +36,6 @@ app.use(cors());
 app.post('/api/register-cloth', upload.single('file'), async (req, res) => {
   console.log('🎯 req.file:', req.file);     // multer가 파싱한 업로드 파일 정보
   console.log('🎯 req.body:', req.body);     // 함께 전송된 텍스트 데이터
-  
   const { userId, clothName, category, location } = req.body;
   const imagePath = req.file?.path;
 
@@ -162,6 +161,6 @@ app.patch('/api/update-cloth/:clothId', async (req, res) => {
 
 // 서버 시작
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`✅ Server running at http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Server running at http://0.0.0.0:${PORT}`);
 });
