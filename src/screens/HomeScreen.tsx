@@ -28,85 +28,82 @@ export default function HomeScreen() {
   const gridWidth = Dimensions.get("window").width - 40;
   const cellSize = gridWidth / colCount;
 
-  useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const uid = auth().currentUser?.uid;
-        if (!uid) return;
+ useEffect(() => {
+  const fetchUserData = async () => {
+    try {
+      const uid = auth().currentUser?.uid;
+      if (!uid) return;
 
-        // ✅ 1. 유저 이름 GET
-        const userRes = await fetch(`http://13.211.132.164:5000/api/user/${uid}`);
-        if (!userRes.ok) throw new Error('유저 정보 조회 실패');
-        const userData = await userRes.json();
-        if (userData.name) setUserName(userData.name);
+      // ✅ 1. 유저 이름 가져오기
+      const userRes = await fetch(`http://13.211.132.164:5000/api/user/${uid}`);
+      if (!userRes.ok) throw new Error('유저 정보 조회 실패');
+      const userData = await userRes.json();
+      if (userData.name) setUserName(userData.name);
 
-        // ✅ 2. 옷장 레이아웃 GET (주소 변경!)
-        const closetRes = await fetch(`http://13.211.132.164:5000/api/closet-layout/${uid}`);
-        if (!closetRes.ok) throw new Error('옷장 정보 조회 실패');
-        const closetData = await closetRes.json();
+      // ✅ 2. 옷장 레이아웃 가져오기
+      const closetRes = await fetch(`http://13.211.132.164:5000/api/closet-layout/${uid}`);
+      if (!closetRes.ok) throw new Error('옷장 정보 조회 실패');
+      const closetData = await closetRes.json();
 
-        // 🔥 1) 데이터 콘솔로 확인!
-        console.log("받아온 closetData:", JSON.stringify(closetData, null, 2));
+      // ✅ 3. 옷 데이터 가져오기
+      const clothesRes = await fetch(`http://13.211.132.164:5000/api/get-clothes/${uid}`);
+      const clothesData = await clothesRes.json();
 
-        // 🔥 2) closet_layout 체크
-        if (
-          closetData.closet_layout &&
-          Array.isArray(closetData.closet_layout) &&
-          closetData.closet_layout.length > 0
-        ) {
-          const firstBlock = closetData.closet_layout[0];
-          if (
-            !firstBlock ||
-            !Array.isArray(firstBlock.coords) ||
-            !firstBlock.coords[0] ||
-            typeof firstBlock.coords[0].x !== 'number' ||
-            typeof firstBlock.coords[0].y !== 'number'
-          ) {
-            console.warn("coords가 올바른 구조가 아닙니다!", firstBlock.coords);
-          }
+      console.log("받아온 closetData:", closetData);
+      console.log("받아온 옷 데이터:", clothesData);
 
-          setClosetBlocks(closetData.closet_layout);
+      // ✅ 4. 옷장 블록에 아이템 수 반영
+      if (
+        closetData.closet_layout &&
+        Array.isArray(closetData.closet_layout) &&
+        closetData.closet_layout.length > 0
+      ) {
+        const updatedBlocks = closetData.closet_layout.map((block: BlockType) => {
+          const itemsInBlock = clothesData.filter(
+            (cloth: any) => cloth.location === block.name
+          );
+          return {
+            ...block,
+            items: itemsInBlock.length,
+          };
+        });
 
-          // 총 아이템 수
-          const total = closetData.closet_layout.reduce(
-            (sum: number, block: BlockType) => sum + (block.items || 0),
-            0
-          ) ?? 0;
-          setClothingCount(total);
+        setClosetBlocks(updatedBlocks);
 
-          // 레이아웃 크기
-          if (closetData.layout_type) {
-            // layout_type: "3x4" → cols=3, rows=4
-            const [cols, rows] = closetData.layout_type.split("x").map(Number);
-            setColCount(cols || 3);
-            setRowCount(rows || 4);
-          } else {
-            // layout_type 없을 경우: 최대 좌표에서 추정
-            let maxX = 0, maxY = 0;
-            closetData.closet_layout.forEach((block: BlockType) => {
-              block.coords.forEach(({ x, y }) => {
-                if (x > maxX) maxX = x;
-                if (y > maxY) maxY = y;
-              });
-            });
-            setRowCount(maxX + 1);
-            setColCount(maxY + 1);
-          }
+        // ✅ 5. 전체 아이템 수 합산
+        const total = updatedBlocks.reduce((sum, block) => sum + (block.items || 0), 0);
+        setClothingCount(total);
+
+        // ✅ 6. 레이아웃 크기 설정
+        if (closetData.layout_type) {
+          const [cols, rows] = closetData.layout_type.split("x").map(Number);
+          setColCount(cols || 3);
+          setRowCount(rows || 4);
         } else {
-          // 🔥 closet_layout 없음
-          setClosetBlocks([]);
-          setClothingCount(0);
-          setRowCount(4);
-          setColCount(3);
-          console.warn("closet_layout이 없습니다. closetData:", closetData);
+          let maxX = 0, maxY = 0;
+          updatedBlocks.forEach((block: BlockType) => {
+            block.coords.forEach(({ x, y }) => {
+              if (x > maxX) maxX = x;
+              if (y > maxY) maxY = y;
+            });
+          });
+          setRowCount(maxX + 1);
+          setColCount(maxY + 1);
         }
-      } catch (err) {
-        console.error("오류 발생:", err);
+      } else {
+        setClosetBlocks([]);
+        setClothingCount(0);
+        setRowCount(4);
+        setColCount(3);
+        console.warn("closet_layout이 없습니다. closetData:", closetData);
       }
-    };
+    } catch (err) {
+      console.error("오류 발생:", err);
+    }
+  };
 
-    fetchUserData();
-  }, []);
+  fetchUserData();
+}, []);
 
   // 블록 위치, 크기 계산
   const getBlockRect = (block: BlockType) => {
@@ -225,7 +222,7 @@ export default function HomeScreen() {
         <TouchableOpacity onPress={() => navigation.navigate("Alarm")}>
           <Image source={require("../../assets/icons/bell.png")} style={styles.tabIcon} />
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate({ name: 'RegisterCloth', params: { imageUri: "" } })}>
+        <TouchableOpacity onPress={() => navigation.navigate('Choice',  { imageUri: '' } )}>
           <Image source={require("../../assets/icons/camera.png")} style={styles.tabIcon} />
         </TouchableOpacity>
       </View>
