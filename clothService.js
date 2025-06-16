@@ -133,3 +133,15 @@ export async function getClothById(clothId) {
   }
 }
 
+// ✅ 옷 정보 수정 기능
+export async function updateCloth(clothId, updates) {
+  try {
+    const clothRef = doc(db, "clothes", clothId);
+    await updateDoc(clothRef, updates);
+    console.log("옷 정보 수정 성공");
+  } catch (error) {
+    console.error("옷 정보 수정 실패:", error);
+    throw error;
+  }
+}
+
