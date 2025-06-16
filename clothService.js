@@ -115,3 +115,21 @@ export async function registerClothWithAI(userId, clothName, category, location,
   }
 }
 
+// ✅ 옷 단일 조회 기능
+export async function getClothById(clothId) {
+  try {
+    const clothRef = doc(db, "clothes", clothId);
+    const clothSnap = await getDoc(clothRef);
+
+    if (!clothSnap.exists()) {
+      throw new Error("해당 옷을 찾을 수 없습니다.");
+    }
+
+    console.log("단일 옷 조회 성공:", clothSnap.id);
+    return { id: clothSnap.id, ...clothSnap.data() };
+  } catch (error) {
+    console.error("단일 옷 조회 실패:", error);
+    throw error;
+  }
+}
+

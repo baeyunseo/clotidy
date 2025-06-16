@@ -8,6 +8,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { registerClothWithAI, getClothes, deleteCloth, updateCloth } from './clothService.js';
+import { getClothById } from './clothService.js';
 
 // 이미지 업로드용 폴더 생성
 const uploadDir = './uploads';
@@ -85,6 +86,16 @@ app.get('/api/get-clothes/:userId', async (req, res) => {
   } catch (error) {
     console.error('옷장 조회 실패:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/get-cloth/:clothId', async (req, res) => {
+  const { clothId } = req.params;
+  try {
+    const cloth = await getClothById(clothId);
+    res.status(200).json(cloth);
+  } catch (error) {
+    res.status(404).json({ error: error.message });
   }
 });
 
