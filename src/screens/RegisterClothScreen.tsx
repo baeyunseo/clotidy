@@ -9,6 +9,7 @@ import {
 import { launchCamera, launchImageLibrary, ImagePickerResponse } from 'react-native-image-picker';
 import axios from 'axios';
 import auth from '@react-native-firebase/auth';
+import RNFS from 'react-native-fs';
 
 // DropDown (공통 선택형 팝업)
 const DropDown = ({
@@ -44,7 +45,7 @@ export default function RegisterClothScreen({ navigation }: any) {
       const userId = auth().currentUser?.uid;
       if (!userId) return;
       try {
-        const res = await fetch(`http://13.211.132.164:5000/api/closet-layout/${userId}`);
+        const res = await fetch(`http://54.79.167.144:5000/api/closet-layout/${userId}`);
         if (!res.ok) throw new Error('블록 정보 조회 실패');
         const data = await res.json();
         setBlockList(data.closet_layout?.map((block: any) => block.name) || []);
@@ -67,7 +68,22 @@ export default function RegisterClothScreen({ navigation }: any) {
     ]);
   };
 
-  // 3. 이미지 가져오기
+   // 👇👇👇 추가된 content uri 처리 함수
+  const handleContentUri = async (uri: string): Promise<string> => {
+    if (!uri.startsWith('content://')) return uri;
+    // RNFS.TemporaryDirectoryPath가 /data/user/0/~~/cache/ 형태 (플랫폼별 다름)
+    const destPath = `${RNFS.TemporaryDirectoryPath}photo_${Date.now()}.jpg`;
+    try {
+      await RNFS.copyFile(uri, destPath);
+      return 'file://' + destPath;
+    } catch (e) {
+      console.log('❌ 파일 복사 실패:', e);
+      Alert.alert('이미지 복사 오류', '사진 파일을 읽을 수 없습니다.');
+      throw e;
+    }
+  };
+
+// 3. 이미지 가져오기 (여기만 확실히 고침!!)
   const pickImage = async (type: 'camera' | 'gallery') => {
     const res: ImagePickerResponse = await (type === 'camera' ? launchCamera : launchImageLibrary)({ mediaType: 'photo' });
     if (res.didCancel) return;
@@ -76,7 +92,14 @@ export default function RegisterClothScreen({ navigation }: any) {
       return;
     }
     if (res.assets && res.assets.length > 0) {
-      const uri = res.assets[0].uri || '';
+      let uri = res.assets[0].uri || '';
+      if (uri.startsWith('content://')) {
+        try {
+          uri = await handleContentUri(uri);
+        } catch (e) {
+          return;
+        }
+      }
       setImageUri(uri);
       console.log('📸 이미지 URI:', uri);
     }
@@ -119,7 +142,7 @@ export default function RegisterClothScreen({ navigation }: any) {
 
       // POST 요청
       console.log('🚀 API 요청 전송 시작');
-      const resp = await axios.post('http://13.211.132.164:5000/api/register-cloth', formData, {
+      const resp = await axios.post('http://54.79.167.144:5000/api/register-cloth', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       console.log('✅ 서버 응답:', resp.data);
@@ -135,8 +158,6 @@ export default function RegisterClothScreen({ navigation }: any) {
     }
   };
 
-  const categoryList = ['상의', '하의', '아우터', '신발', '가방', '모자', '기타'];
-
   return (
     <ScrollView style={{ flex: 1, backgroundColor: '#FFFEFA' }}>
       <View style={styles.container}>
@@ -150,7 +171,13 @@ export default function RegisterClothScreen({ navigation }: any) {
         </TouchableOpacity>
         <DropDown value={location} list={blockList} placeholder="보관 공간 선택" onSelect={setLocation} />
         <TextInput value={clothName} onChangeText={setClothName} style={styles.input} placeholder="옷 이름" />
-        <DropDown value={category} list={categoryList} placeholder="카테고리" onSelect={setCategory} />
+                  <TextInput
+            value={category}
+            onChangeText={setCategory}
+            style={styles.input}
+            placeholder="카테고리 (예: 상의, 하의, 신발 등)"
+          />
+
         <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={uploading}>
           <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>{uploading ? '등록 중...' : '+ 등록'}</Text>
         </TouchableOpacity>

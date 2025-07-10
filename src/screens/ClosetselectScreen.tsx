@@ -63,7 +63,7 @@ const handleSubmit = async () => {
     }
 
     // ✅ 요청 구조에 맞게 key명과 중첩 구조 수정
-    const res = await fetch('http://13.211.132.164:5000/api/save-closet-layout', {
+    const res = await fetch('http://54.79.167.144:5000/api/save-closet-layout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

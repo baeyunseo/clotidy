@@ -35,7 +35,7 @@ export default function SignupScreen() {
 
       console.log("회원가입 API에 보낼 payload:", JSON.stringify(payload));
 
-      const response = await fetch("http://13.211.132.164:5000/api/save-user", {
+      const response = await fetch("http://54.79.167.144:5000/api/save-user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
