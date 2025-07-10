@@ -70,18 +70,24 @@ export default function RegisterClothScreen({ navigation }: any) {
 
    // 👇👇👇 추가된 content uri 처리 함수
   const handleContentUri = async (uri: string): Promise<string> => {
-    if (!uri.startsWith('content://')) return uri;
-    // RNFS.TemporaryDirectoryPath가 /data/user/0/~~/cache/ 형태 (플랫폼별 다름)
-    const destPath = `${RNFS.TemporaryDirectoryPath}photo_${Date.now()}.jpg`;
-    try {
-      await RNFS.copyFile(uri, destPath);
-      return 'file://' + destPath;
-    } catch (e) {
-      console.log('❌ 파일 복사 실패:', e);
-      Alert.alert('이미지 복사 오류', '사진 파일을 읽을 수 없습니다.');
-      throw e;
-    }
-  };
+  if (!uri.startsWith('content://')) return uri;
+  const destPath = `${RNFS.TemporaryDirectoryPath}/photo_${Date.now()}.jpg`; // <-- 슬래시(/) 추가!
+  try {
+    await RNFS.copyFile(uri, destPath);
+    const exists = await RNFS.exists(destPath);
+    console.log('복사 성공?', exists, destPath);
+    if (!exists) throw new Error('복사 실패');
+    // 파일 크기도 확인
+    const stat = await RNFS.stat(destPath);
+    console.log('복사된 파일 크기:', stat.size);
+    return 'file://' + destPath;
+  } catch (e) {
+    console.log('❌ 파일 복사 실패:', e);
+    Alert.alert('이미지 복사 오류', '사진 파일을 읽을 수 없습니다.');
+    throw e;
+  }
+};
+
 
 // 3. 이미지 가져오기 (여기만 확실히 고침!!)
   const pickImage = async (type: 'camera' | 'gallery') => {
