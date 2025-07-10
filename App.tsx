@@ -19,6 +19,8 @@ import ClosetSelectScreen from './src/screens/ClosetSelectScreen';
 import ClosetGridScreen from './src/screens/ClosetGridScreen';
 import CheckClosetScreen from './src/screens/CheckClosetScreen';
 import SplashScreen from './src/screens/SplashScreen';
+import ChoiceScreen from './src/screens/ChoiceScreen';
+import ConfirmScreen from './src/screens/ConfirmScreen'; 
 import RegisterClothScreen from './src/screens/RegisterClothScreen';
 import BlockClothesListScreen from './src/screens/BlockClothesListScreen';
 // import ClosetScreen from './src/screens/ClosetScreen';    // 옷장 화면 (만약 별도 필요)
@@ -40,6 +42,8 @@ export default function App() {
         <Stack.Screen name="ClosetGrid" component={ClosetGridScreen} />
         <Stack.Screen name="RegisterCloth" component={RegisterClothScreen} />
         <Stack.Screen name="BlockClothesList" component={BlockClothesListScreen} />
+        <Stack.Screen name="Choice" component={ChoiceScreen} />
+        <Stack.Screen name="Confirm" component={ConfirmScreen} />
         {/* <Stack.Screen name="Closet" component={ClosetScreen} />      {/* 추가 */}
         {/* <Stack.Screen name="Alarm" component={AlarmScreen} />        {/* 추가 */}
       </Stack.Navigator>
