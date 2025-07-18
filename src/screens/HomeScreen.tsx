@@ -208,15 +208,17 @@ export default function HomeScreen() {
         <TouchableOpacity onPress={() => navigation.navigate("Home")}>
           <Image source={require("../../assets/icons/home.png")} style={styles.tabIcon} />
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate("Closet")}>
-          <Image source={require("../../assets/icons/hanger.png")} style={styles.tabIcon} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate("Alarm")}>
+         <TouchableOpacity onPress={() => navigation.navigate("Alarm")}>
           <Image source={require("../../assets/icons/bell.png")} style={styles.tabIcon} />
         </TouchableOpacity>
+  
         <TouchableOpacity onPress={() => navigation.navigate({ name: 'RegisterCloth', params: { imageUri: "" } })}>
           <Image source={require("../../assets/icons/camera.png")} style={styles.tabIcon} />
         </TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.navigate("Settings")}>
+          <Image source={require("../../assets/icons/settings.png")} style={styles.tabIcon} />
+        </TouchableOpacity>
+       
       </View>
     </View>
   );

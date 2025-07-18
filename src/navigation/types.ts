@@ -12,6 +12,9 @@ export type RootStackParamList = {
   Login: undefined;
   Signup: undefined;
   Home: undefined;
+  Settings: undefined;
+  MyPage: undefined;
+  EditMyPage: undefined;
   ClosetIndex: undefined;    // ✅ 이렇게
   ClosetSelect: undefined;
   ClosetGrid: {
@@ -27,16 +30,6 @@ export type RootStackParamList = {
   CheckCloset: undefined;
   RegisterCloth: { imageUri: string };  
   BlockClothesList: { location: string };
-  Choice: { 
-    imageUri: string;
-    category: string;
-    colorName: string;
-  };
-  Confirm: {
-    imageUri: string;
-    category: string;
-    colorName: string;
-  };
   Alarm: undefined;
   Closet: undefined;
 };

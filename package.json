@@ -1,5 +1,5 @@
 {
-  "name": "myclotidy",
+  "name": "myapp",
   "type": "module",
   "version": "0.0.1",
   "private": true,
@@ -15,6 +15,7 @@
     "@react-native-community/cli": "latest",
     "@react-native-firebase/app": "^22.2.0",
     "@react-native-firebase/auth": "^22.2.0",
+    "@react-native-firebase/firestore": "^22.2.1",
     "@react-navigation/native": "^7.1.10",
     "@react-navigation/native-stack": "^7.3.14",
     "@react-navigation/stack": "^7.3.3",
