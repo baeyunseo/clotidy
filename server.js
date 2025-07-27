@@ -7,7 +7,7 @@ import { db } from './firebaseConfig.js';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { registerClothWithAI, getClothes, deleteCloth, updateCloth } from './clothService.js';
+import { registerClothWithAI, getClothes, deleteCloth, updateCloth, searchClothes } from './clothService.js';
 import { getClothById } from './clothService.js';
 
 // 이미지 업로드용 폴더 생성
@@ -92,6 +92,21 @@ app.get('/api/get-clothes/:userId', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// 키워드 검색 API (추가)
+app.get('/api/search-clothes/:userId', async (req, res) => {
+  const { userId } = req.params;
+  const { keyword = "" } = req.query;
+
+  try {
+    const result = await searchClothes(userId, keyword);
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('옷 검색 실패:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
 app.get('/api/get-cloth/:clothId', async (req, res) => {
   const { clothId } = req.params;

@@ -149,3 +149,27 @@ export async function updateCloth(clothId, updates) {
     throw error;
   }
 }
+
+// 키워드 검색 (이름/카테고리에 keyword가 포함된 옷만 추출)
+export async function searchClothes(userId, keyword = "") {
+  try {
+    const q = query(collection(db, "clothes"), where("user_id", "==", userId));
+    const snapshot = await getDocs(q);
+
+    const lower = keyword.toLowerCase();
+
+    const filtered = snapshot.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .filter((item) => {
+        const name = (item.cloth_name || "").toLowerCase();
+        const category = (item.category || "").toLowerCase();
+        return name.includes(lower) || category.includes(lower);
+      });
+
+    return filtered;
+  } catch (e) {
+    console.error("검색 실패:", e);
+    throw e;
+  }
+}
+
