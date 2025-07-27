@@ -123,7 +123,7 @@ export default function RegisterClothScreen({ navigation }: any) {
 
       if (!userId) throw new Error('로그인 필요');
       if (!imageUri) throw new Error('사진 없음');
-      if (!clothName || !category || !location) throw new Error('필수 정보 누락');
+      if (!clothName || !location) throw new Error('필수 정보 누락');
       setUploading(true);
 
       // FormData로 전송, key는 반드시 'file'
