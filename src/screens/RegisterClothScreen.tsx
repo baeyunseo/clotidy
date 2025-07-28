@@ -1,35 +1,71 @@
 // src/screens/RegisterClothScreen.tsx
 // 옷 등록 화면
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, Image, StyleSheet, Alert, ScrollView,
-  ActivityIndicator, TouchableOpacity
+  ActivityIndicator, TouchableOpacity, Modal, FlatList
 } from 'react-native';
 import { launchCamera, launchImageLibrary, ImagePickerResponse } from 'react-native-image-picker';
 import axios from 'axios';
 import auth from '@react-native-firebase/auth';
 import RNFS from 'react-native-fs';
 
-// DropDown (공통 선택형 팝업)
 const DropDown = ({
   value, list, placeholder, onSelect
-}: { value: string, list: string[], placeholder: string, onSelect: (v: string) => void }) => (
-  <TouchableOpacity
-    style={[styles.input, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
-    onPress={() => {
-      Alert.alert(
-        placeholder, '',
-        [
-          ...list.map(v => ({ text: v, onPress: () => onSelect(v) })),
-          { text: '취소', onPress: () => {}, style: 'cancel' }
-        ]
-      );
-    }}>
-    <Text style={{ color: value ? '#222' : '#aaa' }}>{value || placeholder}</Text>
-    <Text style={{ color: '#888' }}>▼</Text>
-  </TouchableOpacity>
-);
+}: { value: string, list: string[], placeholder: string, onSelect: (v: string) => void }) => {
+  const [modalVisible, setModalVisible] = useState(false);
+  const filteredList = list.filter(item => !!item && String(item).trim() !== "");
+  const buttonRef = useRef<View>(null);
+  const [dropdownWidth, setDropdownWidth] = useState(220);
+
+  return (
+    <>
+      <TouchableOpacity
+        ref={buttonRef}
+        style={[styles.input, styles.dropdown, { flexDirection: 'row', alignItems: 'center' }]}
+        onPress={() => {
+          buttonRef.current?.measure((fx, fy, width, height, px, py) => {
+            setDropdownWidth(width);
+            setModalVisible(true);
+          });
+        }}
+        activeOpacity={0.9}
+      >
+        <Text style={{ color: value ? '#222' : '#aaa', flex: 1 }}>{value || placeholder}</Text>
+        <Text style={styles.dropdownIcon}>▼</Text>
+      </TouchableOpacity>
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setModalVisible(false)}>
+          <View style={[styles.modalContent, { width: dropdownWidth, minWidth: 170, maxWidth: 350 }]}>
+            <FlatList
+              data={filteredList}
+              keyExtractor={item => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.modalItem}
+                  onPress={() => {
+                    onSelect(item);
+                    setModalVisible(false);
+                  }}>
+                  <Text style={{ fontSize: 16 }}>{item}</Text>
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                <Text style={{ padding: 14, color: '#aaa', textAlign: 'center' }}>등록된 공간이 없습니다</Text>
+              }
+            />
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </>
+  );
+};
 
 export default function RegisterClothScreen({ navigation }: any) {
   const [imageUri, setImageUri] = useState<string>('');
@@ -39,11 +75,13 @@ export default function RegisterClothScreen({ navigation }: any) {
   const [uploading, setUploading] = useState(false);
   const [blockList, setBlockList] = useState<string[]>([]);
 
-  // ⭐ 스타일(중복 선택형)
+  // 스타일 (중복 선택)
   const styleOptions = ["캐주얼", "격식", "데일리", "운동복", "데이트", "기타"];
   const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
 
-  // 1. 서버에서 블록(보관공간) 리스트 조회
+  // AI 분석 중 로딩
+  const [analyzing, setAnalyzing] = useState(false);
+
   useEffect(() => {
     const fetchBlockList = async () => {
       const userId = auth().currentUser?.uid;
@@ -106,13 +144,37 @@ export default function RegisterClothScreen({ navigation }: any) {
     }
   };
 
-  // ⭐ 스타일 중복 선택 함수
+  // 스타일 중복 선택 함수
   const toggleStyle = (style: string) => {
     setSelectedStyles(prev =>
       prev.includes(style)
         ? prev.filter(s => s !== style)
         : [...prev, style]
     );
+  };
+
+  // AI 분석 요청 (카테고리 자동입력)
+  const handleAnalyze = async () => {
+    try {
+      if (!imageUri) throw new Error('사진을 먼저 선택해 주세요');
+      setAnalyzing(true);
+      const formData = new FormData();
+      formData.append('file', {
+        uri: imageUri,
+        name: 'cloth.jpg',
+        type: 'image/jpeg',
+      } as any);
+
+      const resp = await axios.post('http://54.79.167.144:5000/api/analyze-category', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setCategory(resp.data.category || "");
+      Alert.alert("AI 분석 완료", `카테고리: ${resp.data.category || "분석 실패"}`);
+    } catch (e: any) {
+      Alert.alert('AI 분석 실패', e.response?.data?.error || e.message || '서버 오류');
+    } finally {
+      setAnalyzing(false);
+    }
   };
 
   // 등록 API (FormData로 전송)
@@ -130,8 +192,7 @@ export default function RegisterClothScreen({ navigation }: any) {
       formData.append('clothName', clothName);
       formData.append('category', category);
       formData.append('location', location);
-      // ⭐ 스타일 여러 개를 배열/문자열로 서버에 전달
-      formData.append('styleType', selectedStyles.join(',')); // 서버가 배열도 받으면 그냥 selectedStyles 넘겨도 됨
+      formData.append('styleType', selectedStyles.join(','));
       formData.append('file', {
         uri: imageUri,
         name: 'cloth.jpg',
@@ -162,7 +223,16 @@ export default function RegisterClothScreen({ navigation }: any) {
             <Text style={{ color: '#aaa' }}>사진 올리기 (카메라/갤러리)</Text>
           )}
         </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.analyzeBtn}
+          onPress={handleAnalyze}
+          disabled={!imageUri || analyzing}
+        >
+          <Text style={{ color: '#fff', fontSize: 16 }}>{analyzing ? 'AI 자동 분류 중...' : 'AI 자동 분류'}</Text>
+        </TouchableOpacity>
+
         <DropDown value={location} list={blockList} placeholder="보관 공간 선택" onSelect={setLocation} />
+
         <TextInput value={clothName} onChangeText={setClothName} style={styles.input} placeholder="옷 이름" />
         <TextInput
           value={category}
@@ -171,9 +241,8 @@ export default function RegisterClothScreen({ navigation }: any) {
           placeholder="카테고리 (예: 상의, 하의, 신발 등)"
         />
 
-        {/* ⭐ 스타일(중복 선택) UI */}
         <Text style={styles.label}>스타일 선택</Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginVertical: 10 }}>
+        <View style={styles.styleWrap}>
           {styleOptions.map(option => (
             <TouchableOpacity
               key={option}
@@ -192,7 +261,7 @@ export default function RegisterClothScreen({ navigation }: any) {
         </View>
 
         <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={uploading}>
-          <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>{uploading ? '등록 중...' : '+ 등록'}</Text>
+          <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>{uploading ? '등록 중...' : '+  등록'}</Text>
         </TouchableOpacity>
         {uploading && <ActivityIndicator size="large" color="#37955F" />}
       </View>
@@ -202,21 +271,33 @@ export default function RegisterClothScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 24, backgroundColor: '#FFFEFA' },
-  title: { fontSize: 20, fontWeight: 'bold', color: '#37955F', marginVertical: 16, textAlign: 'center' },
-  uploadBox: { borderWidth: 1, borderColor: '#37955F', borderRadius: 10, justifyContent: 'center', alignItems: 'center', height: 180, marginBottom: 18 },
-  img: { width: 180, height: 180, borderRadius: 10 },
+  title: { fontSize: 22, fontWeight: 'bold', color: '#37955F', marginVertical: 14, textAlign: 'center' },
+  uploadBox: {
+    borderWidth: 1, borderColor: '#37955F', borderRadius: 10,
+    justifyContent: 'center', alignItems: 'center',
+    height: 170, marginBottom: 12, backgroundColor: "#FAFAFA"
+  },
+  img: { width: 170, height: 170, borderRadius: 10 },
   input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 10, marginVertical: 8, fontSize: 16 },
-  button: { backgroundColor: '#37955F', padding: 16, borderRadius: 8, alignItems: 'center', marginTop: 24, elevation: 2 },
-  label: { fontSize: 16, fontWeight: "bold", marginTop: 16, color: "#222" },
+  dropdown: { paddingRight: 36, height: 44, justifyContent: 'center', marginVertical: 8 },
+  dropdownIcon: { position: 'absolute', right: 14, color: '#888', fontSize: 18, top: '50%', marginTop: -8 },
+  analyzeBtn: { backgroundColor: "#37955F", paddingVertical: 12, borderRadius: 10, alignItems: 'center', marginVertical: 8, marginBottom: 10, elevation: 1 },
+  button: { backgroundColor: '#37955F', paddingVertical: 12, borderRadius: 8, alignItems: 'center', marginTop: 14, marginBottom: 10, width: 120, alignSelf: 'flex-end' },
+  label: { fontSize: 16, fontWeight: "bold", marginTop: 14, color: "#222", marginBottom: 4 },
+  styleWrap: { flexDirection: 'row', flexWrap: 'wrap', marginVertical: 6 },
   styleBtn: {
     backgroundColor: "#F4F4F4",
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: 18,
     marginRight: 10,
-    marginBottom: 10,
+    marginTop: 3,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: "#d5d5d5"
   },
   styleBtnText: { fontSize: 15, color: "#222" },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.12)', justifyContent: 'center', alignItems: 'center' },
+  modalContent: { backgroundColor: '#fff', borderRadius: 10, minWidth: 170, maxWidth: 350, paddingVertical: 4, alignSelf: 'center' },
+  modalItem: { paddingVertical: 14, paddingHorizontal: 18, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
 });
