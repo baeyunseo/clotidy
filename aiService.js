@@ -24,12 +24,14 @@ export async function fetchColorFromAI(imagePath) {
       color = "unknown",
       dominant_rgb = [0, 0, 0],
       sub_rgb = [0, 0, 0],
+      semantic_category = []
     } = response.data;
 
     return {
       color,
       color_rgb: dominant_rgb,
       sub_color_rgb: sub_rgb,
+      semantic_category
     };
   } catch (error) {
     console.error("❌ AI 분석 실패:", error.message);

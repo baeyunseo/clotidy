@@ -16,7 +16,9 @@ export async function registerCloth(
   imageUrl,
   location,
   colorRgb,
-  subColorRgb
+  subColorRgb, 
+  semanticCategory
+  
 ) {
   try {
     const docRef = await addDoc(collection(db, "clothes"), {
@@ -29,10 +31,12 @@ export async function registerCloth(
       season: season,
       image_url: imageUrl,
       location: location,
+       semantic_category: semanticCategory || [],
       worn_count: 0,
       last_worn: null
     });
     console.log("✅ 옷 등록 성공:", docRef.id);
+    return docRef.id;
   } catch (error) {
     console.error("❌ 옷 등록 실패:", error);
   }
@@ -89,6 +93,8 @@ export async function registerClothWithAI(userId, clothName, category, location,
 
   try {
     const aiData = await fetchColorFromAI(imagePath);
+    const semanticCategory = aiData.semantic_category || [];
+
 
     color = aiData.color || "unknown";
     colorRgb = aiData.color_rgb
@@ -111,8 +117,10 @@ export async function registerClothWithAI(userId, clothName, category, location,
       imagePath,
       location,
       colorRgb,
-      subColorRgb
+      subColorRgb,
+      semanticCategory
     );
+    return clothID;
     console.log("✅ Firestore 저장 완료 (AI 성공 또는 기본값)");
   } catch (error) {
     console.error("❌ Firestore 저장 실패:", error.message);

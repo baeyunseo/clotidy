@@ -47,7 +47,9 @@ app.post('/api/register-cloth', upload.single('file'), async (req, res) => {
 
   try {
     await registerClothWithAI(userId, clothName, category, location, imagePath);
-    res.status(200).json({ message: 'Cloth registered successfully' });
+    res.status(200).json({ message: 'Cloth registered successfully',
+      clothID: clothID
+     });
   } catch (error) {
     console.error('옷 등록 실패:', error);
     res.status(500).json({ error: error.message });
