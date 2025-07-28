@@ -15,6 +15,15 @@ export type RootStackParamList = {
   Settings: undefined;
   MyPage: undefined;
   EditMyPage: undefined;
+  Search: undefined;
+  SearchResult: {
+     id: string;
+  clothName: string;  // APIでは "cloth_name" なのでマッピング時に注意
+  category: string;
+  color?: string;
+  location?: string;
+  imageUrl?: string; 
+  };
   ClosetIndex: undefined;    // ✅ 이렇게
   ClosetSelect: undefined;
   ClosetGrid: {

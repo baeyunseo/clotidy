@@ -22,6 +22,8 @@ import SplashScreen from './src/screens/SplashScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import MyPageScreen from './src/screens/MyPageScreen';
 import EditMyPageScreen from './src/screens/EditMyPageScreen';
+import SearchScreen from './src/screens/SearchScreen';
+import SearchResultScreen from './src/screens/SearchResultScreen';
 //import ChoiceScreen from './src/screens/ChoiceScreen';
 //import ConfirmScreen from './src/screens/ConfirmScreen'; 
 import RegisterClothScreen from './src/screens/RegisterClothScreen';
@@ -43,6 +45,8 @@ export default function App() {
         <Stack.Screen name="Settings" component={SettingsScreen} />
         <Stack.Screen name="MyPage" component={MyPageScreen} />
         <Stack.Screen name="EditMyPage" component={EditMyPageScreen} />
+        <Stack.Screen name="Search" component={SearchScreen} />
+        <Stack.Screen name="SearchResult" component={SearchResultScreen} />        
         <Stack.Screen name="ClosetIndex" component={ClosetIndexScreen} />
         <Stack.Screen name="ClosetSelect" component={ClosetSelectScreen} />
         <Stack.Screen name="ClosetGrid" component={ClosetGridScreen} />

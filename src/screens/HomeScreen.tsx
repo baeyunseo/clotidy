@@ -1,5 +1,3 @@
-// src/screens/HomeScreen.tsx
-
 import React, { useState, useCallback } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, StatusBar, Dimensions,
@@ -29,7 +27,6 @@ export default function HomeScreen() {
   const gridWidth = Dimensions.get("window").width - 40;
   const cellSize = gridWidth / colCount;
 
-  // **변경: useFocusEffect 사용**
   useFocusEffect(
     useCallback(() => {
       const fetchUserData = async () => {
@@ -37,23 +34,19 @@ export default function HomeScreen() {
           const uid = auth().currentUser?.uid;
           if (!uid) return;
 
-          // 1. 유저 이름 요청
           const userRes = await fetch(`${BASE_URL}/api/user/${uid}`);
           if (!userRes.ok) throw new Error('유저 정보 조회 실패');
           const userData = await userRes.json();
           if (userData.name) setUserName(userData.name);
 
-          // 2. 옷장 레이아웃 요청
           const closetRes = await fetch(`${BASE_URL}/api/closet-layout/${uid}`);
           if (!closetRes.ok) throw new Error('옷장 정보 조회 실패');
           const closetData = await closetRes.json();
 
-          // 3. 옷 전체 데이터 요청
           const clothesRes = await fetch(`${BASE_URL}/api/get-clothes/${uid}`);
           if (!clothesRes.ok) throw new Error("옷 데이터 조회 실패");
           const clothesData = await clothesRes.json();
 
-          // 4. 블록별 아이템 개수 매칭
           if (
             closetData.closet_layout &&
             Array.isArray(closetData.closet_layout) &&
@@ -69,7 +62,6 @@ export default function HomeScreen() {
             setClosetBlocks(updatedBlocks);
             setClothingCount(clothesData.length);
 
-            // 레이아웃 크기 설정
             if (closetData.layout_type) {
               const [cols, rows] = closetData.layout_type.split("x").map(Number);
               setColCount(cols || 3);
@@ -125,8 +117,16 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
-      <Image source={require("../../assets/images/clotidy1.png")} style={styles.logo} />
 
+      {/* ロゴ＋虫眼鏡 */}
+      <View style={styles.logoRow}>
+        <Image source={require("../../assets/images/clotidy1.png")} style={styles.logo} />
+        <TouchableOpacity onPress={() => navigation.navigate("Search")}>
+          <Image source={require("../../assets/icons/search_resized.png")} style={styles.searchIcon} />
+        </TouchableOpacity>
+      </View>
+
+      {/* 탭 */}
       <View style={styles.tabContainer}>
         <TouchableOpacity onPress={() => setActiveTab("closet")}>
           <Text style={[styles.tab, activeTab === "closet" && styles.activeTab]}>옷장</Text>
@@ -142,9 +142,8 @@ export default function HomeScreen() {
           <Text style={styles.sectionDesc}>총 {clothingCount}개의 아이템이 있습니다.</Text>
         </View>
 
-        {/* 블록형 옷장 */}
+        {/* 옷장 그리드 */}
         <View style={[styles.gridAbsoluteBox, { width: gridWidth, height: rowCount * cellSize }]}>
-          {/* 기본 그리드 */}
           {Array.from({ length: rowCount }).map((_, rowIdx) =>
             Array.from({ length: colCount }).map((_, colIdx) => (
               <View
@@ -163,7 +162,6 @@ export default function HomeScreen() {
             ))
           )}
 
-          {/* 블록 렌더링 */}
           {closetBlocks.map((block, i) => {
             const { top, left, width, height } = getBlockRect(block);
 
@@ -208,17 +206,15 @@ export default function HomeScreen() {
         <TouchableOpacity onPress={() => navigation.navigate("Home")}>
           <Image source={require("../../assets/icons/home.png")} style={styles.tabIcon} />
         </TouchableOpacity>
-         <TouchableOpacity onPress={() => navigation.navigate("Alarm")}>
+        <TouchableOpacity onPress={() => navigation.navigate("Alarm")}>
           <Image source={require("../../assets/icons/bell.png")} style={styles.tabIcon} />
         </TouchableOpacity>
-  
         <TouchableOpacity onPress={() => navigation.navigate({ name: 'RegisterCloth', params: { imageUri: "" } })}>
           <Image source={require("../../assets/icons/camera.png")} style={styles.tabIcon} />
         </TouchableOpacity>
         <TouchableOpacity onPress={() => navigation.navigate("Settings")}>
           <Image source={require("../../assets/icons/settings.png")} style={styles.tabIcon} />
         </TouchableOpacity>
-       
       </View>
     </View>
   );
@@ -226,7 +222,24 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FFFEFA" },
-  header: { fontSize: 18, fontWeight: "bold", textAlign: "center", marginTop: 50, marginBottom: 10 },
+  logoRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 45,
+    marginBottom: 5,
+  },
+  logo: {
+    width: 126,
+    height: 30,
+    left: 30,
+    resizeMode: "contain",
+  },
+  searchIcon: {
+    width: 60,
+    height: 60,
+    left: 90,
+  },
   tabContainer: { flexDirection: "row", justifyContent: "center", marginBottom: 10 },
   tab: { marginHorizontal: 20, fontSize: 16, color: "#777" },
   activeTab: { color: "#6AC892", fontWeight: "bold", borderBottomWidth: 2, borderColor: "#6AC892" },
@@ -249,12 +262,4 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   tabIcon: { width: 24, height: 24 },
-  logo: {
-    width: 126,
-    height: 30,
-    resizeMode: "contain",
-    alignSelf: "center",
-    marginTop: 50,
-    marginBottom: 10,
-  },
 });
