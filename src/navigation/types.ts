@@ -17,13 +17,14 @@ export type RootStackParamList = {
   EditMyPage: undefined;
   Search: undefined;
   SearchResult: {
-     id: string;
-  clothName: string;  // APIでは "cloth_name" なのでマッピング時に注意
+  id: string;
+  clothName: string;  
   category: string;
   color?: string;
   location?: string;
   imageUrl?: string; 
   };
+  Coordinate : undefined;
   ClosetIndex: undefined;    // ✅ 이렇게
   ClosetSelect: undefined;
   ClosetGrid: {

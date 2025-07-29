@@ -24,10 +24,9 @@ import MyPageScreen from './src/screens/MyPageScreen';
 import EditMyPageScreen from './src/screens/EditMyPageScreen';
 import SearchScreen from './src/screens/SearchScreen';
 import SearchResultScreen from './src/screens/SearchResultScreen';
-//import ChoiceScreen from './src/screens/ChoiceScreen';
-//import ConfirmScreen from './src/screens/ConfirmScreen'; 
 import RegisterClothScreen from './src/screens/RegisterClothScreen';
 import BlockClothesListScreen from './src/screens/BlockClothesListScreen';
+import CoordinateScreen from './src/screens/CoordinateScreen';
 // import ClosetScreen from './src/screens/ClosetScreen';    // 옷장 화면 (만약 별도 필요)
 // import AlarmScreen from './src/screens/AlarmScreen';      // 알람/리마인드 화면 (만약 별도 필요)
 
@@ -52,8 +51,7 @@ export default function App() {
         <Stack.Screen name="ClosetGrid" component={ClosetGridScreen} />
         <Stack.Screen name="RegisterCloth" component={RegisterClothScreen} />
         <Stack.Screen name="BlockClothesList" component={BlockClothesListScreen} />
-        {/*<Stack.Screen name="Choice" component={ChoiceScreen} />*/}
-        {/*<Stack.Screen name="Confirm" component={ConfirmScreen} />*/}
+        <Stack.Screen name="Coordinate" component={CoordinateScreen} />
         {/* <Stack.Screen name="Closet" component={ClosetScreen} />      {/* 추가 */}
         {/* <Stack.Screen name="Alarm" component={AlarmScreen} />        {/* 추가 */}
       </Stack.Navigator>
