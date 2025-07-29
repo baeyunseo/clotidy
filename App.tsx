@@ -28,7 +28,7 @@ import RegisterClothScreen from './src/screens/RegisterClothScreen';
 import BlockClothesListScreen from './src/screens/BlockClothesListScreen';
 import CoordinateScreen from './src/screens/CoordinateScreen';
 // import ClosetScreen from './src/screens/ClosetScreen';    // 옷장 화면 (만약 별도 필요)
-// import AlarmScreen from './src/screens/AlarmScreen';      // 알람/리마인드 화면 (만약 별도 필요)
+import AlarmScreen from './src/screens/AlarmScreen';      // 알람/리마인드 화면 (만약 별도 필요)
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -52,8 +52,8 @@ export default function App() {
         <Stack.Screen name="RegisterCloth" component={RegisterClothScreen} />
         <Stack.Screen name="BlockClothesList" component={BlockClothesListScreen} />
         <Stack.Screen name="Coordinate" component={CoordinateScreen} />
+        <Stack.Screen name="Alarm" component={AlarmScreen} />
         {/* <Stack.Screen name="Closet" component={ClosetScreen} />      {/* 추가 */}
-        {/* <Stack.Screen name="Alarm" component={AlarmScreen} />        {/* 추가 */}
       </Stack.Navigator>
     </NavigationContainer>
   );

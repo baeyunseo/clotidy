@@ -206,7 +206,7 @@ export default function HomeScreen() {
         <TouchableOpacity onPress={() => navigation.navigate("Home")}>
           <Image source={require("../../assets/icons/home.png")} style={styles.tabIcon} />
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate("Coordinate")}>
+        <TouchableOpacity onPress={() => navigation.navigate("Alarm")}>
           <Image source={require("../../assets/icons/bell.png")} style={styles.tabIcon} />
         </TouchableOpacity>
         <TouchableOpacity onPress={() => navigation.navigate({ name: 'RegisterCloth', params: { imageUri: "" } })}>
