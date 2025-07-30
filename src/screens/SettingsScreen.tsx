@@ -1,4 +1,4 @@
-// src/screens/MyPageScreen.tsx
+// src/screens/SettingsScreen.tsx
 
 import React from 'react';
 import {

@@ -1,3 +1,6 @@
+// scr/screens/ClosetIndexScreen
+// 리마인드 알림 화면
+
 import React, { useState } from 'react';
 import {
   View, Text, Image, StyleSheet, FlatList, TouchableOpacity, Alert

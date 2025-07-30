@@ -1,3 +1,6 @@
+// scr/screens/CoordinateScreen
+// 코디 추천 화면
+
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, Image, ScrollView
