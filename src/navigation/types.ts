@@ -37,6 +37,7 @@ export type RootStackParamList = {
     cols: string;
     layout_type: string;
   };
+  
   CheckCloset: undefined;
   RegisterCloth: { imageUri: string };  
   BlockClothesList: { location: string };

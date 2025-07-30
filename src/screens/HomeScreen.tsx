@@ -1,24 +1,20 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, StatusBar, Dimensions,
+  View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, StatusBar, Dimensions, FlatList,
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import auth from "@react-native-firebase/auth";
+import axios from "axios";
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
-
-type BlockType = {
-  name: string;
-  coords: { x: number; y: number }[];
-  items?: number;
-};
 
 const BASE_URL = "http://54.79.167.144:5000";
 
 export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState<"closet" | "list">("closet");
   const [userName, setUserName] = useState("사용자");
-  const [closetBlocks, setClosetBlocks] = useState<BlockType[]>([]);
+  const [closetBlocks, setClosetBlocks] = useState<any[]>([]);
+  const [clothes, setClothes] = useState<any[]>([]);
   const [clothingCount, setClothingCount] = useState(0);
   const [rowCount, setRowCount] = useState(4);
   const [colCount, setColCount] = useState(3);
@@ -34,54 +30,33 @@ export default function HomeScreen() {
           const uid = auth().currentUser?.uid;
           if (!uid) return;
 
-          const userRes = await fetch(`${BASE_URL}/api/user/${uid}`);
-          if (!userRes.ok) throw new Error('유저 정보 조회 실패');
-          const userData = await userRes.json();
+          const [userRes, closetRes, clothesRes] = await Promise.all([
+            axios.get(`${BASE_URL}/api/user/${uid}`),
+            axios.get(`${BASE_URL}/api/closet-layout/${uid}`),
+            axios.get(`${BASE_URL}/api/get-clothes/${uid}`)
+          ]);
+
+          const userData = userRes.data;
+          const closetData = closetRes.data;
+          const clothesData = clothesRes.data;
+
           if (userData.name) setUserName(userData.name);
 
-          const closetRes = await fetch(`${BASE_URL}/api/closet-layout/${uid}`);
-          if (!closetRes.ok) throw new Error('옷장 정보 조회 실패');
-          const closetData = await closetRes.json();
+          const updatedBlocks = closetData.closet_layout.map((block: any) => {
+            const itemCount = clothesData.filter((item: any) =>
+              (item.location ?? '').trim() === (block.name ?? '').trim()
+            ).length;
+            return { ...block, items: itemCount };
+          });
 
-          const clothesRes = await fetch(`${BASE_URL}/api/get-clothes/${uid}`);
-          if (!clothesRes.ok) throw new Error("옷 데이터 조회 실패");
-          const clothesData = await clothesRes.json();
+          setClosetBlocks(updatedBlocks);
+          setClothes(clothesData);
+          setClothingCount(clothesData.length);
 
-          if (
-            closetData.closet_layout &&
-            Array.isArray(closetData.closet_layout) &&
-            closetData.closet_layout.length > 0
-          ) {
-            const updatedBlocks = closetData.closet_layout.map((block: BlockType) => {
-              const itemCount = clothesData.filter((item: any) =>
-                (item.location ?? '').trim() === (block.name ?? '').trim()
-              ).length;
-              return { ...block, items: itemCount };
-            });
-
-            setClosetBlocks(updatedBlocks);
-            setClothingCount(clothesData.length);
-
-            if (closetData.layout_type) {
-              const [cols, rows] = closetData.layout_type.split("x").map(Number);
-              setColCount(cols || 3);
-              setRowCount(rows || 4);
-            } else {
-              let maxX = 0, maxY = 0;
-              closetData.closet_layout.forEach((block: BlockType) => {
-                block.coords.forEach(({ x, y }) => {
-                  if (x > maxX) maxX = x;
-                  if (y > maxY) maxY = y;
-                });
-              });
-              setRowCount(maxX + 1);
-              setColCount(maxY + 1);
-            }
-          } else {
-            setClosetBlocks([]);
-            setClothingCount(0);
-            setRowCount(4);
-            setColCount(3);
+          if (closetData.layout_type) {
+            const [cols, rows] = closetData.layout_type.split("x").map(Number);
+            setColCount(cols || 3);
+            setRowCount(rows || 4);
           }
         } catch (err) {
           console.error("오류 발생:", err);
@@ -92,9 +67,9 @@ export default function HomeScreen() {
     }, [])
   );
 
-  const getBlockRect = (block: BlockType) => {
+  const getBlockRect = (block: any) => {
     if (!block.coords || block.coords.length === 0) return {
-      top: 0, left: 0, width: cellSize, height: cellSize, minRow: 0, minCol: 0
+      top: 0, left: 0, width: cellSize, height: cellSize
     };
 
     const rows = block.coords.map(c => c.x);
@@ -109,110 +84,98 @@ export default function HomeScreen() {
       left: minCol * cellSize,
       width: (maxCol - minCol + 1) * cellSize,
       height: (maxRow - minRow + 1) * cellSize,
-      minRow,
-      minCol,
     };
   };
+
+  const getImageUrl = (url: string) => {
+    if (!url) return "";
+    if (url.startsWith("http")) return url;
+    return `${BASE_URL}/${url.replace(/^\//, '')}`;
+  };
+
+  const renderItem = ({ item }: any) => (
+    <View style={styles.card}>
+      <Image source={{ uri: getImageUrl(item.image_url) }} style={styles.image} />
+      <View style={styles.infoBox}>
+        <View style={styles.rowBetween}>
+          <Text style={styles.name}>{item.cloth_name}</Text>
+          <TouchableOpacity style={styles.coordiBtn}>
+            <Text style={styles.coordiText}>코디 제안</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.meta}>마지막 착용일 : {item.last_worn_date || '0000.00.00'}</Text>
+        <Text style={styles.meta}>등록일 : <Text style={styles.date}>{item.created_at || '0000.00.00'}</Text></Text>
+      </View>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
-
-      {/* ロゴ＋虫眼鏡 */}
       <View style={styles.logoRow}>
         <Image source={require("../../assets/images/clotidy1.png")} style={styles.logo} />
-        <TouchableOpacity onPress={() => navigation.navigate("Search")}>
+        <TouchableOpacity onPress={() => navigation.navigate("Search")}> 
           <Image source={require("../../assets/icons/search_resized.png")} style={styles.searchIcon} />
         </TouchableOpacity>
       </View>
 
-      {/* 탭 */}
       <View style={styles.tabContainer}>
-        <TouchableOpacity onPress={() => setActiveTab("closet")}>
+        <TouchableOpacity onPress={() => setActiveTab("closet")}> 
           <Text style={[styles.tab, activeTab === "closet" && styles.activeTab]}>옷장</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setActiveTab("list")}>
+        <TouchableOpacity onPress={() => setActiveTab("list")}> 
           <Text style={[styles.tab, activeTab === "list" && styles.activeTab]}>리스트</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 }]}>
-        <View style={styles.userBox}>
-          <Text style={styles.sectionTitle}>{userName}의 옷장</Text>
-          <Text style={styles.sectionDesc}>총 {clothingCount}개의 아이템이 있습니다.</Text>
-        </View>
-
-        {/* 옷장 그리드 */}
-        <View style={[styles.gridAbsoluteBox, { width: gridWidth, height: rowCount * cellSize }]}>
-          {Array.from({ length: rowCount }).map((_, rowIdx) =>
-            Array.from({ length: colCount }).map((_, colIdx) => (
-              <View
-                key={`cell-${rowIdx}-${colIdx}`}
-                style={{
-                  position: 'absolute',
-                  top: rowIdx * cellSize,
-                  left: colIdx * cellSize,
-                  width: cellSize,
-                  height: cellSize,
-                  borderWidth: 1,
-                  borderColor: "#bbb",
-                  backgroundColor: "#FFFEFA",
-                }}
-              />
-            ))
-          )}
-
-          {closetBlocks.map((block, i) => {
-            const { top, left, width, height } = getBlockRect(block);
-
-            if (!block.coords || block.coords.length === 0) {
-              return null;
-            }
-
-            return (
-              <View
-                key={`block-${i}-${block.name}`}
-                style={{
-                  position: 'absolute',
-                  top, left, width, height,
-                  backgroundColor: "#52b788",
-                  borderColor: "#286E46",
-                  borderWidth: 2,
-                  borderRadius: 18,
-                  zIndex: 10,
-                  overflow: 'hidden',
-                }}
-              >
-                <TouchableOpacity
-                  onPress={() => navigation.navigate('BlockClothesList', { location: block.name })}
-                  style={{
-                    position: "absolute",
-                    left: 12,
-                    top: 12,
-                    alignItems: "flex-start",
-                  }}
+      {activeTab === "closet" ? (
+        <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 }]}>
+          <View style={styles.userBox}>
+            <Text style={styles.sectionTitle}>{userName}의 옷장</Text>
+            <Text style={styles.sectionDesc}>총 {clothingCount}개의 아이템이 있습니다.</Text>
+          </View>
+          <View style={[styles.gridAbsoluteBox, { width: gridWidth, height: rowCount * cellSize }]}>
+            {closetBlocks.map((block, i) => {
+              const { top, left, width, height } = getBlockRect(block);
+              if (!block.coords?.length) return null;
+              return (
+                <View
+                  key={`block-${i}-${block.name}`}
+                  style={{ position: 'absolute', top, left, width, height, backgroundColor: "#52b788", borderColor: "#286E46", borderWidth: 2, borderRadius: 18, zIndex: 10 }}
                 >
-                  <Text style={styles.gridText}>{block.name}</Text>
-                  <Text style={styles.gridSubText}>총 {block.items || 0}개의 아이템</Text>
-                </TouchableOpacity>
-              </View>
-            );
-          })}
-        </View>
-      </ScrollView>
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate('BlockClothesList', { location: block.name })}
+                    style={{ position: "absolute", left: 12, top: 12 }}
+                  >
+                    <Text style={styles.gridText}>{block.name}</Text>
+                    <Text style={styles.gridSubText}>총 {block.items || 0}개의 아이템</Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+          </View>
+        </ScrollView>
+      ) : (
+        <FlatList
+          data={clothes}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
+        />
+      )}
 
-      {/* 탭바 */}
       <View style={styles.tabBar}>
-        <TouchableOpacity onPress={() => navigation.navigate("Home")}>
+        <TouchableOpacity onPress={() => navigation.navigate("Home")}> 
           <Image source={require("../../assets/icons/home.png")} style={styles.tabIcon} />
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate("Alarm")}>
+        <TouchableOpacity onPress={() => navigation.navigate("Alarm")}> 
           <Image source={require("../../assets/icons/bell.png")} style={styles.tabIcon} />
         </TouchableOpacity>
         <TouchableOpacity onPress={() => navigation.navigate({ name: 'RegisterCloth', params: { imageUri: "" } })}>
           <Image source={require("../../assets/icons/camera.png")} style={styles.tabIcon} />
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate("Settings")}>
+        <TouchableOpacity onPress={() => navigation.navigate("Settings")}> 
           <Image source={require("../../assets/icons/settings.png")} style={styles.tabIcon} />
         </TouchableOpacity>
       </View>
@@ -222,24 +185,9 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FFFEFA" },
-  logoRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 45,
-    marginBottom: 5,
-  },
-  logo: {
-    width: 126,
-    height: 30,
-    left: 30,
-    resizeMode: "contain",
-  },
-  searchIcon: {
-    width: 60,
-    height: 60,
-    left: 90,
-  },
+  logoRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", marginTop: 45, marginBottom: 5 },
+  logo: { width: 126, height: 30, left: 30, resizeMode: "contain" },
+  searchIcon: { width: 60, height: 60, left: 90 },
   tabContainer: { flexDirection: "row", justifyContent: "center", marginBottom: 10 },
   tab: { marginHorizontal: 20, fontSize: 16, color: "#777" },
   activeTab: { color: "#6AC892", fontWeight: "bold", borderBottomWidth: 2, borderColor: "#6AC892" },
@@ -250,16 +198,15 @@ const styles = StyleSheet.create({
   gridAbsoluteBox: { position: 'relative', alignSelf: 'center', marginTop: 10 },
   gridText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
   gridSubText: { color: "#fff", fontSize: 12, marginTop: 4 },
-  tabBar: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderColor: "#ddd",
-    backgroundColor: "#FFFEFA",
-    position: "absolute",
-    bottom: 0,
-    width: "100%",
-  },
+  tabBar: { flexDirection: "row", justifyContent: "space-around", paddingVertical: 12, borderTopWidth: 1, borderColor: "#ddd", backgroundColor: "#FFFEFA", position: "absolute", bottom: 0, width: "100%" },
   tabIcon: { width: 24, height: 24 },
+  card: { width: '48%', margin: '1%', backgroundColor: '#fff', borderRadius: 8 },
+  image: { width: '100%', aspectRatio: 1, backgroundColor: '#EAEAEA', borderTopLeftRadius: 8, borderTopRightRadius: 8 },
+  infoBox: { padding: 8 },
+  rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  name: { fontWeight: "bold", fontSize: 14, color: "#222" },
+  coordiBtn: { borderWidth: 1, borderColor: "#aaa", borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
+  coordiText: { fontSize: 10, color: "#444" },
+  meta: { fontSize: 11, color: "#666", marginTop: 2 },
+  date: { fontWeight: "bold", color: "#222" }
 });
