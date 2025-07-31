@@ -34,7 +34,8 @@ export default function AlarmScreen() {
     },
   ]);
 
-  const handleSuggestCoordi = (cloth: Cloth) => {
+   const handleSuggestCoordi = (cloth: Cloth) => {
+    navigation.navigate('Coordinate');
 
   };
 

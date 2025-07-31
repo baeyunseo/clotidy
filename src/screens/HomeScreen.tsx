@@ -99,7 +99,13 @@ export default function HomeScreen() {
       <View style={styles.infoBox}>
         <View style={styles.rowBetween}>
           <Text style={styles.name}>{item.cloth_name}</Text>
-          <TouchableOpacity style={styles.coordiBtn}>
+          <TouchableOpacity
+            style={styles.coordiBtn}
+            onPress={() => {
+              console.log("코디 제안 눌림");
+              navigation.navigate('Coordinate');
+            }}
+          >
             <Text style={styles.coordiText}>코디 제안</Text>
           </TouchableOpacity>
         </View>
@@ -114,16 +120,16 @@ export default function HomeScreen() {
       <StatusBar barStyle="dark-content" />
       <View style={styles.logoRow}>
         <Image source={require("../../assets/images/clotidy1.png")} style={styles.logo} />
-        <TouchableOpacity onPress={() => navigation.navigate("Search")}> 
+        <TouchableOpacity onPress={() => navigation.navigate("Search")}>
           <Image source={require("../../assets/icons/search_resized.png")} style={styles.searchIcon} />
         </TouchableOpacity>
       </View>
 
       <View style={styles.tabContainer}>
-        <TouchableOpacity onPress={() => setActiveTab("closet")}> 
+        <TouchableOpacity onPress={() => setActiveTab("closet")}>
           <Text style={[styles.tab, activeTab === "closet" && styles.activeTab]}>옷장</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setActiveTab("list")}> 
+        <TouchableOpacity onPress={() => setActiveTab("list")}>
           <Text style={[styles.tab, activeTab === "list" && styles.activeTab]}>리스트</Text>
         </TouchableOpacity>
       </View>
@@ -166,16 +172,16 @@ export default function HomeScreen() {
       )}
 
       <View style={styles.tabBar}>
-        <TouchableOpacity onPress={() => navigation.navigate("Home")}> 
+        <TouchableOpacity onPress={() => navigation.navigate("Home")}>
           <Image source={require("../../assets/icons/home.png")} style={styles.tabIcon} />
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate("Alarm")}> 
+        <TouchableOpacity onPress={() => navigation.navigate("Alarm")}>
           <Image source={require("../../assets/icons/bell.png")} style={styles.tabIcon} />
         </TouchableOpacity>
         <TouchableOpacity onPress={() => navigation.navigate({ name: 'RegisterCloth', params: { imageUri: "" } })}>
           <Image source={require("../../assets/icons/camera.png")} style={styles.tabIcon} />
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate("Settings")}> 
+        <TouchableOpacity onPress={() => navigation.navigate("Settings")}>
           <Image source={require("../../assets/icons/settings.png")} style={styles.tabIcon} />
         </TouchableOpacity>
       </View>
