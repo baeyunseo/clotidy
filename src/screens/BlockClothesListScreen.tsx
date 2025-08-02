@@ -1,6 +1,8 @@
 // src/screens/BlockClothesListScreen.tsx
 // 옷장 위치별 옷 목록 화면
 
+// src/screens/BlockClothesListScreen.tsx
+
 import React, { useEffect, useState } from "react";
 import {
   View, Text, FlatList, StyleSheet, ActivityIndicator,
@@ -56,7 +58,6 @@ export default function BlockClothesListScreen() {
         }));
 
         setClothes(filtered);
-
       } catch (err: any) {
         setClothes([]);
         Alert.alert('에러', err.message || '옷 목록을 불러올 수 없습니다.');
@@ -71,10 +72,14 @@ export default function BlockClothesListScreen() {
     <View style={styles.card}>
       <Image source={{ uri: getImageUrl(item.imageUrl) }} style={styles.image} />
       <View style={styles.infoBox}>
-        <View style={styles.rowBetween}>
-          <Text style={styles.name}>{item.clothName || "이름없음"}</Text>
-        </View>
+        <Text style={styles.name}>{item.clothName || "이름없음"}</Text>
         <Text style={styles.meta}>{item.category}</Text>
+        <TouchableOpacity
+          style={styles.coordiBtn}
+          onPress={() => navigation.navigate("Coordinate")}
+        >
+          <Text style={styles.coordiText}>✔️  코디 제안</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -85,7 +90,7 @@ export default function BlockClothesListScreen() {
       {loading ? (
         <ActivityIndicator size="large" color="#6AC892" style={{ marginTop: 40 }} />
       ) : clothes.length === 0 ? (
-        <Text style={{ textAlign: "center", marginTop: 30, color: "#888" }}>등록된 옷이 없습니다.</Text>
+        <Text style={styles.emptyText}>등록된 옷이 없습니다.</Text>
       ) : (
         <FlatList
           data={clothes}
@@ -112,35 +117,51 @@ const styles = StyleSheet.create({
     margin: 20,
     textAlign: "center"
   },
+  emptyText: {
+    textAlign: "center",
+    marginTop: 30,
+    color: "#888",
+  },
   card: {
     width: '48%',
     margin: '1%',
     backgroundColor: '#fff',
-    borderRadius: 8,
+    borderRadius: 10,
+    overflow: 'hidden',
+    borderWidth: 0.5,
+    borderColor: '#eee',
+    elevation: 0.5,
   },
   image: {
     width: '100%',
     aspectRatio: 1,
-    backgroundColor: '#EAEAEA',
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
+    backgroundColor: '#F3F3F3',
   },
   infoBox: {
-    padding: 8,
-  },
-  rowBetween: {
-    flexDirection: "row",
+    padding: 10,
     justifyContent: "space-between",
-    alignItems: "center",
+    minHeight: 100,
   },
   name: {
-    fontWeight: "bold",
     fontSize: 14,
+    fontWeight: "bold",
     color: "#222",
   },
   meta: {
-    fontSize: 11,
+    fontSize: 12,
     color: "#666",
-    marginTop: 2,
+    marginTop: 4,
+  },
+  coordiBtn: {
+    marginTop: 10,
+    backgroundColor: "#6AC892",
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: "center",
+  },
+  coordiText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 13,
   },
 });
