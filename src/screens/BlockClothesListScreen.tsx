@@ -1,8 +1,6 @@
 // src/screens/BlockClothesListScreen.tsx
 // 옷장 위치별 옷 목록 화면
 
-// src/screens/BlockClothesListScreen.tsx
-
 import React, { useEffect, useState } from "react";
 import {
   View, Text, FlatList, StyleSheet, ActivityIndicator,
@@ -123,19 +121,19 @@ const styles = StyleSheet.create({
     color: "#888",
   },
   card: {
-    width: '48%',
-    margin: '1%',
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    overflow: 'hidden',
-    borderWidth: 0.5,
-    borderColor: '#eee',
-    elevation: 0.5,
+  width: '48%',
+  margin: '1%',
+  backgroundColor: '#FFFEFA',   // ← 화면 배경색과 동일하게!
+  borderRadius: 10,
+  overflow: 'hidden',
+  borderWidth: 0,               // ← 테두리 제거
+  borderColor: 'transparent',   // ← 테두리 제거
+  elevation: 0,                 // ← 그림자 제거
   },
   image: {
     width: '100%',
     aspectRatio: 1,
-    backgroundColor: '#F3F3F3',
+    backgroundColor: '#fff',
   },
   infoBox: {
     padding: 10,

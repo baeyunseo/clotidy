@@ -1,3 +1,6 @@
+// scr/screens/HomeScreen
+// 홈 화면
+
 import React, { useState, useCallback } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, StatusBar, Dimensions, FlatList,
@@ -20,8 +23,8 @@ type ClothItem = {
   id: string;
   image_url: string;
   cloth_name: string;
+  category?: string;
   last_worn_date?: string;
-  created_at?: string;
   location?: string;
 };
 
@@ -111,24 +114,22 @@ export default function HomeScreen() {
     return `${BASE_URL}/${url.replace(/^\//, '')}`;
   };
 
+  // 리스트 스타일 감성 통일! (BlockClothesListScreen과 동일하게)
   const renderItem = ({ item }: { item: ClothItem }) => (
     <View style={styles.card}>
       <Image source={{ uri: getImageUrl(item.image_url) }} style={styles.image} />
       <View style={styles.infoBox}>
-        <View style={styles.rowBetween}>
-          <Text style={styles.name}>{item.cloth_name}</Text>
-          <TouchableOpacity
-            style={styles.coordiBtn}
-            onPress={() => {
-              console.log("코디 제안 눌림");
-              navigation.navigate('Coordinate');
-            }}
-          >
-            <Text style={styles.coordiText}>코디 제안</Text>
-          </TouchableOpacity>
-        </View>
-        <Text style={styles.meta}>마지막 착용일 : {item.last_worn_date || '0000.00.00'}</Text>
-        <Text style={styles.meta}>등록일 : <Text style={styles.date}>{item.created_at || '0000.00.00'}</Text></Text>
+        <Text style={styles.name}>{item.cloth_name}</Text>
+        <Text style={styles.category}>{item.category || "카테고리 없음"}</Text>
+        <Text style={styles.meta}>
+          마지막 착용일 : {item.last_worn_date && item.last_worn_date !== "0000.00.00" ? item.last_worn_date : "-"}
+        </Text>
+        <TouchableOpacity
+          style={styles.coordiBtn}
+          onPress={() => navigation.navigate('Coordinate')}
+        >
+          <Text style={styles.coordiText}>✔️  코디 제안</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -159,8 +160,6 @@ export default function HomeScreen() {
             <Text style={styles.sectionDesc}>총 {clothingCount}개의 아이템이 있습니다.</Text>
           </View>
           <View style={[styles.gridAbsoluteBox, { width: gridWidth, height: rowCount * cellSize }]}>
-            {/* 👇👇👇 격자 줄 추가! 👇👇👇 */}
-            {/* 세로선 */}
             {[...Array(colCount + 1)].map((_, colIdx) => (
               <View
                 key={`vline-${colIdx}`}
@@ -170,12 +169,11 @@ export default function HomeScreen() {
                   top: 0,
                   width: 1,
                   height: rowCount * cellSize,
-                  backgroundColor: "#6AC892", // 격자선 색상
+                  backgroundColor: "#6AC892",
                   zIndex: 1,
                 }}
               />
             ))}
-            {/* 가로선 */}
             {[...Array(rowCount + 1)].map((_, rowIdx) => (
               <View
                 key={`hline-${rowIdx}`}
@@ -185,13 +183,11 @@ export default function HomeScreen() {
                   left: 0,
                   width: colCount * cellSize,
                   height: 1,
-                  backgroundColor: "#BBB", // 격자선 색상
+                  backgroundColor: "#BBB",
                   zIndex: 1,
                 }}
               />
             ))}
-
-            {/* 블록 렌더링 */}
             {closetBlocks.map((block, i) => {
               const { top, left, width, height } = getBlockRect(block);
               if (!block.coords?.length) return null;
@@ -268,13 +264,36 @@ const styles = StyleSheet.create({
   gridSubText: { color: "#fff", fontSize: 12, marginTop: 4 },
   tabBar: { flexDirection: "row", justifyContent: "space-around", paddingVertical: 12, borderTopWidth: 1, borderColor: "#ddd", backgroundColor: "#FFFEFA", position: "absolute", bottom: 0, width: "100%" },
   tabIcon: { width: 24, height: 24 },
-  card: { width: '48%', margin: '1%', backgroundColor: '#fff', borderRadius: 8 },
-  image: { width: '100%', aspectRatio: 1, backgroundColor: '#EAEAEA', borderTopLeftRadius: 8, borderTopRightRadius: 8 },
-  infoBox: { padding: 8 },
-  rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  name: { fontWeight: "bold", fontSize: 14, color: "#222" },
-  coordiBtn: { borderWidth: 1, borderColor: "#aaa", borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
-  coordiText: { fontSize: 10, color: "#444" },
-  meta: { fontSize: 11, color: "#666", marginTop: 2 },
-  date: { fontWeight: "bold", color: "#222" }
+  card: {
+    width: '48%',
+    margin: '1%',
+    backgroundColor: '#FFFEFA',
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 0,
+    borderColor: 'transparent',
+    elevation: 0,
+  },
+  image: {
+    width: '100%',
+    aspectRatio: 1,
+    backgroundColor: '#F3F3F3',
+    borderRadius: 12,
+  },
+  infoBox: {
+    padding: 10,
+    minHeight: 94,
+    justifyContent: "space-between",
+  },
+  name: { fontWeight: "bold", fontSize: 14, color: "#222", marginBottom: 1 },
+  category: { color: "#222", fontWeight: "bold", fontSize: 13 },
+  coordiBtn: {
+    marginTop: 10,
+    backgroundColor: "#6AC892",
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: "center",
+  },
+  coordiText: { color: "#fff", fontWeight: "bold", fontSize: 13 },
+  meta: { fontSize: 12, color: "#666", marginTop: 0, marginBottom: 0 },
 });
