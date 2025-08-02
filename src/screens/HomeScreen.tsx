@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, StatusBar, Dimensions, FlatList,
 } from "react-native";
@@ -8,13 +8,30 @@ import axios from "axios";
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 
+// ✅ 타입 정의
+type Coord = { x: number; y: number };
+type BlockType = {
+  name: string;
+  coords: Coord[];
+  items?: number;
+};
+
+type ClothItem = {
+  id: string;
+  image_url: string;
+  cloth_name: string;
+  last_worn_date?: string;
+  created_at?: string;
+  location?: string;
+};
+
 const BASE_URL = "http://54.79.167.144:5000";
 
 export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState<"closet" | "list">("closet");
   const [userName, setUserName] = useState("사용자");
-  const [closetBlocks, setClosetBlocks] = useState<any[]>([]);
-  const [clothes, setClothes] = useState<any[]>([]);
+  const [closetBlocks, setClosetBlocks] = useState<BlockType[]>([]);
+  const [clothes, setClothes] = useState<ClothItem[]>([]);
   const [clothingCount, setClothingCount] = useState(0);
   const [rowCount, setRowCount] = useState(4);
   const [colCount, setColCount] = useState(3);
@@ -38,12 +55,12 @@ export default function HomeScreen() {
 
           const userData = userRes.data;
           const closetData = closetRes.data;
-          const clothesData = clothesRes.data;
+          const clothesData: ClothItem[] = clothesRes.data;
 
           if (userData.name) setUserName(userData.name);
 
-          const updatedBlocks = closetData.closet_layout.map((block: any) => {
-            const itemCount = clothesData.filter((item: any) =>
+          const updatedBlocks = closetData.closet_layout.map((block: BlockType) => {
+            const itemCount = clothesData.filter((item: ClothItem) =>
               (item.location ?? '').trim() === (block.name ?? '').trim()
             ).length;
             return { ...block, items: itemCount };
@@ -67,13 +84,14 @@ export default function HomeScreen() {
     }, [])
   );
 
-  const getBlockRect = (block: any) => {
+  // ✅ 타입 적용 (block: BlockType)
+  const getBlockRect = (block: BlockType) => {
     if (!block.coords || block.coords.length === 0) return {
       top: 0, left: 0, width: cellSize, height: cellSize
     };
 
-    const rows = block.coords.map(c => c.x);
-    const cols = block.coords.map(c => c.y);
+    const rows = block.coords.map((c: Coord) => c.x);
+    const cols = block.coords.map((c: Coord) => c.y);
     const minRow = Math.min(...rows);
     const maxRow = Math.max(...rows);
     const minCol = Math.min(...cols);
@@ -93,7 +111,7 @@ export default function HomeScreen() {
     return `${BASE_URL}/${url.replace(/^\//, '')}`;
   };
 
-  const renderItem = ({ item }: any) => (
+  const renderItem = ({ item }: { item: ClothItem }) => (
     <View style={styles.card}>
       <Image source={{ uri: getImageUrl(item.image_url) }} style={styles.image} />
       <View style={styles.infoBox}>
@@ -141,13 +159,57 @@ export default function HomeScreen() {
             <Text style={styles.sectionDesc}>총 {clothingCount}개의 아이템이 있습니다.</Text>
           </View>
           <View style={[styles.gridAbsoluteBox, { width: gridWidth, height: rowCount * cellSize }]}>
+            {/* 👇👇👇 격자 줄 추가! 👇👇👇 */}
+            {/* 세로선 */}
+            {[...Array(colCount + 1)].map((_, colIdx) => (
+              <View
+                key={`vline-${colIdx}`}
+                style={{
+                  position: "absolute",
+                  left: colIdx * cellSize,
+                  top: 0,
+                  width: 1,
+                  height: rowCount * cellSize,
+                  backgroundColor: "#6AC892", // 격자선 색상
+                  zIndex: 1,
+                }}
+              />
+            ))}
+            {/* 가로선 */}
+            {[...Array(rowCount + 1)].map((_, rowIdx) => (
+              <View
+                key={`hline-${rowIdx}`}
+                style={{
+                  position: "absolute",
+                  top: rowIdx * cellSize,
+                  left: 0,
+                  width: colCount * cellSize,
+                  height: 1,
+                  backgroundColor: "#BBB", // 격자선 색상
+                  zIndex: 1,
+                }}
+              />
+            ))}
+
+            {/* 블록 렌더링 */}
             {closetBlocks.map((block, i) => {
               const { top, left, width, height } = getBlockRect(block);
               if (!block.coords?.length) return null;
               return (
                 <View
                   key={`block-${i}-${block.name}`}
-                  style={{ position: 'absolute', top, left, width, height, backgroundColor: "#52b788", borderColor: "#286E46", borderWidth: 2, borderRadius: 18, zIndex: 10 }}
+                  style={{
+                    position: 'absolute',
+                    top,
+                    left,
+                    width,
+                    height,
+                    backgroundColor: "#52b788",
+                    borderColor: "#286E46",
+                    borderWidth: 2,
+                    borderRadius: 18,
+                    zIndex: 10
+                  }}
                 >
                   <TouchableOpacity
                     onPress={() => navigation.navigate('BlockClothesList', { location: block.name })}
