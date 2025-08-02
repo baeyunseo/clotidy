@@ -38,3 +38,28 @@ export async function fetchColorFromAI(imagePath) {
     throw error;
   }
 }
+
+export async function fetchSemanticCategoryFromAI(imagePath) {
+  try {
+    console.log("🎯 AI 의미 카테고리 분석 요청 중...");
+
+    const formData = new FormData();
+    formData.append("file", fs.createReadStream(imagePath));
+
+    const response = await axios.post(
+      "http://54.79.167.144:8000/extract-semantic-category/",  // 예시 URL (실제 AI 팀이 알려준 거로 바꿔야 함)
+      formData,
+      {
+        headers: formData.getHeaders(),
+        timeout: 10000,
+      }
+    );
+
+    console.log("🎯 의미 카테고리 응답:", response.data);
+    return response.data.semantic_category || [];
+  } catch (error) {
+    console.error("❌ 의미 카테고리 분석 실패:", error.message);
+    return [];
+  }
+}
+

@@ -5,6 +5,8 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebaseConfig.js";
 import { fetchColorFromAI } from "./aiService.js"; // AI 요청 함수
+import { fetchSemanticCategoryFromAI } from "./aiService.js";
+
 
 // 옷 등록 기능
 export async function registerCloth(
@@ -90,22 +92,25 @@ export async function registerClothWithAI(userId, clothName, category, location,
   let color = "unknown";
   let colorRgb = null;
   let subColorRgb = null;
-
-  try {
-    const aiData = await fetchColorFromAI(imagePath);
-    const semanticCategory = aiData.semantic_category || [];
+  let semanticCategory = [];
 
 
-    color = aiData.color || "unknown";
-    colorRgb = aiData.color_rgb
-      ? { r: aiData.color_rgb[0], g: aiData.color_rgb[1], b: aiData.color_rgb[2] }
-      : null;
-    subColorRgb = aiData.sub_color_rgb
-      ? { r: aiData.sub_color_rgb[0], g: aiData.sub_color_rgb[1], b: aiData.sub_color_rgb[2] }
-      : null;
-  } catch (error) {
-    console.error("❌ AI 분석 실패, 입력값만 저장:", error.message);
-  }
+ try {
+  const aiData = await fetchColorFromAI(imagePath);                    // 🎯 색상 분석
+  semanticCategory = await fetchSemanticCategoryFromAI(imagePath);     // 🎯 의미 카테고리 분석
+
+  color = aiData.color || "unknown";
+  colorRgb = aiData.color_rgb
+    ? { r: aiData.color_rgb[0], g: aiData.color_rgb[1], b: aiData.color_rgb[2] }
+    : null;
+  subColorRgb = aiData.sub_color_rgb
+    ? { r: aiData.sub_color_rgb[0], g: aiData.sub_color_rgb[1], b: aiData.sub_color_rgb[2] }
+    : null;
+} catch (error) {
+  console.error("❌ AI 분석 실패, 입력값만 저장:", error.message);
+  semanticCategory = [];  // 분석 실패 시 기본값
+}
+
 
   try {
     await registerCloth(
