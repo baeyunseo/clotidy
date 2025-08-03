@@ -54,7 +54,7 @@ app.post('/api/register-cloth', upload.single('file'), async (req, res) => {
     subColorRgb,
     styleType
   } = req.body;
-  let category = req.body.category || "unknown";
+  let category = req.body.category ?? "unknown";
   const semanticCategory = [mapSemanticCategory(category)];
 
   const imagePath = req.file?.path;
@@ -74,8 +74,8 @@ app.post('/api/register-cloth', upload.single('file'), async (req, res) => {
       "unknown",        // season
       imagePath,
       location,
-      JSON.parse(colorRgb || null),
-      JSON.parse(subColorRgb || null),
+      colorRgb ? JSON.parse(colorRgb) : null,
+      subColorRgb ? JSON.parse(subColorRgb) : null,
       semanticCategory,
       JSON.parse(styleType || "[]")
     );
