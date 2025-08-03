@@ -48,7 +48,7 @@ app.post('/api/register-cloth', upload.single('file'), async (req, res) => {
   const {
     userId,
     clothName,
-    category,
+    category = "unknown",
     location,
     color,
     colorRgb,
@@ -63,7 +63,7 @@ app.post('/api/register-cloth', upload.single('file'), async (req, res) => {
   }
 
   try {
-    const semanticCategory = [mapSemanticCategory(category)];
+    const semanticCategory =  [mapSemanticCategory(category || "unknown")];
 
     const clothId = await registerCloth(
       userId,
