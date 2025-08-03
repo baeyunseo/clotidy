@@ -228,6 +228,7 @@ app.post('/api/analyze-category', upload.single('file'), async (req, res) => {
   }
 });
 
+console.log("🔥 category before registerCloth:", category);
 
 // 서버 시작
 const PORT = process.env.PORT || 5000;
