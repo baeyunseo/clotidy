@@ -55,7 +55,6 @@ app.post('/api/register-cloth', upload.single('file'), async (req, res) => {
     styleType
   } = req.body;
   let category = req.body.category ?? "unknown";
-  const semanticCategory = [mapSemanticCategory(category)];
 
   const imagePath = req.file?.path;
 
