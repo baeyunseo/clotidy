@@ -260,7 +260,7 @@ function mapSemanticCategory(category) {
   };
   return mapping[category] || 'unknown';
 }
-console.log("🧵 Firestore 저장 직전 category:", category);
+
 
 
 

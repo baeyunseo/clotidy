@@ -55,6 +55,7 @@ app.post('/api/register-cloth', upload.single('file'), async (req, res) => {
     styleType
   } = req.body;
   let category = req.body.category ?? "unknown";
+  console.log("🔥 최종 category 값:", category);
 
   const imagePath = req.file?.path;
 
@@ -228,7 +229,7 @@ app.post('/api/analyze-category', upload.single('file'), async (req, res) => {
   }
 });
 
-console.log("🔥 category before registerCloth:", category);
+
 
 // 서버 시작
 const PORT = process.env.PORT || 5000;
