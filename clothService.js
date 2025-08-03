@@ -98,20 +98,47 @@ export async function registerClothWithAI(userId, clothName, category, location,
   let styleType = [];
 
   // ✅ 자동 분류 category → semantic_category 매핑
-  function mapSemanticCategory(category) {
-    const mapping = {
-      tshirt: 'tops',
-      shirt: 'tops',
-      blouse: 'tops',
-      hoodie: 'tops',
-      coat: 'outer',
-      jacket: 'outer',
-      shorts: 'bottoms',
-      pants: 'bottoms',
-      skirt: 'bottoms'
-    };
-    return mapping[category] || 'unknown';
-  }
+function mapSemanticCategory(category) {
+  const fine_to_semantic = {
+    "backpack": "bags",
+    "belt": "accessories",
+    "blazer": "outerwear",
+    "blouse": "tops",
+    "boots": "shoes",
+    "cardigan": "outerwear",
+    "coat": "outerwear",
+    "dress": "all-body",
+    "earrings": "jewellery",
+    "flats": "shoes",
+    "handbag": "bags",
+    "hat": "hats",
+    "heels": "shoes",
+    "jacket": "outerwear",
+    "jeans": "bottoms",
+    "loafers": "shoes",
+    "necklace": "jewellery",
+    "pants": "bottoms",
+    "shorts": "bottoms",
+    "skirt": "bottoms",
+    "sleeveless top": "tops",
+    "sneakers": "shoes",
+    "socks": "accessories",
+    "sunglasses": "accessories",
+    "sweater": "tops",
+    "sweatpants": "bottoms",
+    "sweatshirt": "tops",
+    "tshirt": "tops"
+  };
+
+  return fine_to_semantic[category] || "unknown";
+}
+
+module.exports = {
+  mapSemanticCategory
+};
+
+
+
 
   try {
     const aiData = await fetchColorFromAI(imagePath);

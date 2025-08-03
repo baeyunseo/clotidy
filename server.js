@@ -10,6 +10,9 @@ import fs from 'fs';
 import { registerClothWithAI, getClothes, deleteCloth, updateCloth, searchClothes } from './clothService.js';
 import { getClothById } from './clothService.js';
 import { mapSemanticCategory } from './clothService.js'; 
+import { analyzeClothImage, mapSemanticCategory } from './clothService.js';
+
+
 
 // 이미지 업로드용 폴더 생성
 const uploadDir = './uploads';
