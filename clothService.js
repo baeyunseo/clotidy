@@ -19,7 +19,8 @@ export async function registerCloth(
   location,
   colorRgb,
   subColorRgb, 
-  semanticCategory
+  semanticCategory,
+  styleType
   
 ) {
   try {
@@ -34,6 +35,7 @@ export async function registerCloth(
       image_url: imageUrl,
       location: location,
        semantic_category: semanticCategory || [],
+       styleType: styleType || [],
       worn_count: 0,
       last_worn: null
     });
@@ -93,27 +95,45 @@ export async function registerClothWithAI(userId, clothName, category, location,
   let colorRgb = null;
   let subColorRgb = null;
   let semanticCategory = [];
+  let styleType = [];
 
-
- try {
-  const aiData = await fetchColorFromAI(imagePath);                    // 🎯 색상 분석
-  semanticCategory = await fetchSemanticCategoryFromAI(imagePath);     // 🎯 의미 카테고리 분석
-
-  color = aiData.color || "unknown";
-  colorRgb = aiData.color_rgb
-    ? { r: aiData.color_rgb[0], g: aiData.color_rgb[1], b: aiData.color_rgb[2] }
-    : null;
-  subColorRgb = aiData.sub_color_rgb
-    ? { r: aiData.sub_color_rgb[0], g: aiData.sub_color_rgb[1], b: aiData.sub_color_rgb[2] }
-    : null;
-} catch (error) {
-  console.error("❌ AI 분석 실패, 입력값만 저장:", error.message);
-  semanticCategory = [];  // 분석 실패 시 기본값
-}
-
+  // ✅ 자동 분류 category → semantic_category 매핑
+  function mapSemanticCategory(category) {
+    const mapping = {
+      tshirt: 'tops',
+      shirt: 'tops',
+      blouse: 'tops',
+      hoodie: 'tops',
+      coat: 'outer',
+      jacket: 'outer',
+      shorts: 'bottoms',
+      pants: 'bottoms',
+      skirt: 'bottoms'
+    };
+    return mapping[category] || 'unknown';
+  }
 
   try {
-    await registerCloth(
+    const aiData = await fetchColorFromAI(imagePath);
+
+    color = aiData.color || "unknown";
+    colorRgb = aiData.color_rgb
+      ? { r: aiData.color_rgb[0], g: aiData.color_rgb[1], b: aiData.color_rgb[2] }
+      : null;
+    subColorRgb = aiData.sub_color_rgb
+      ? { r: aiData.sub_color_rgb[0], g: aiData.sub_color_rgb[1], b: aiData.sub_color_rgb[2] }
+      : null;
+
+    category = aiData.category || "";
+    semanticCategory = [mapSemanticCategory(category)];
+    styleType = aiData.styleType || [];
+
+  } catch (error) {
+    console.error("❌ AI 분석 실패, 입력값만 저장:", error.message);
+  }
+
+  try {
+    const clothId = await registerCloth(
       userId,
       clothName,
       category,
@@ -123,15 +143,16 @@ export async function registerClothWithAI(userId, clothName, category, location,
       location,
       colorRgb,
       subColorRgb,
-      semanticCategory
+      semanticCategory,
+      styleType
     );
-    return clothID;
-    console.log("✅ Firestore 저장 완료 (AI 성공 또는 기본값)");
+    return clothId;  // ✅ clothId 명시적으로 리턴
   } catch (error) {
     console.error("❌ Firestore 저장 실패:", error.message);
     throw error;
   }
 }
+
 
 // 옷 단일 조회
 export async function getClothById(clothId) {
@@ -185,4 +206,33 @@ export async function searchClothes(userId, keyword = "") {
     throw e;
   }
 }
+// ai 분석 등록 분리 함수
+export async function analyzeClothImage(imagePath) {
+  const aiData = await fetchColorFromAI(imagePath);
+  const category = aiData.category || "";
+  const styleType = aiData.styleType || [];
+  const color = aiData.color || "unknown";
+  const colorRgb = aiData.color_rgb
+    ? { r: aiData.color_rgb[0], g: aiData.color_rgb[1], b: aiData.color_rgb[2] }
+    : null;
+  const subColorRgb = aiData.sub_color_rgb
+    ? { r: aiData.sub_color_rgb[0], g: aiData.sub_color_rgb[1], b: aiData.sub_color_rgb[2] }
+    : null;
+
+  return { category, styleType, color, colorRgb, subColorRgb };
+}
+
+// 카테고리 매핑 자동 추가 함수
+function mapSemanticCategory(category) {
+  const mapping = {
+    tshirt: 'tops',
+    shirt: 'tops',
+    shorts: 'bottoms',
+    skirt: 'bottoms',
+    // 추가 가능
+  };
+  return mapping[category] || 'unknown';
+}
+
+
 

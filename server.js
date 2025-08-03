@@ -9,6 +9,7 @@ import path from 'path';
 import fs from 'fs';
 import { registerClothWithAI, getClothes, deleteCloth, updateCloth, searchClothes } from './clothService.js';
 import { getClothById } from './clothService.js';
+import { mapSemanticCategory } from './clothService.js'; 
 
 // 이미지 업로드용 폴더 생성
 const uploadDir = './uploads';
@@ -35,10 +36,23 @@ app.use(cors());
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // ✅ 파일 업로드 라우트 먼저 선언 (multipart/form-data 문제 방지)
+import { mapSemanticCategory } from './clothService.js'; // 위에 추가 필요
+
 app.post('/api/register-cloth', upload.single('file'), async (req, res) => {
-  console.log('🎯 req.file:', req.file);     // multer가 파싱한 업로드 파일 정보
-  console.log('🎯 req.body:', req.body);     // 함께 전송된 텍스트 데이터
-  const { userId, clothName, category, location } = req.body;
+  console.log('🎯 req.file:', req.file);
+  console.log('🎯 req.body:', req.body);
+
+  const {
+    userId,
+    clothName,
+    category,
+    location,
+    color,
+    colorRgb,
+    subColorRgb,
+    styleType
+  } = req.body;
+
   const imagePath = req.file?.path;
 
   if (!imagePath) {
@@ -46,15 +60,32 @@ app.post('/api/register-cloth', upload.single('file'), async (req, res) => {
   }
 
   try {
-    await registerClothWithAI(userId, clothName, category, location, imagePath);
-    res.status(200).json({ message: 'Cloth registered successfully',
-      clothID: clothID
-     });
+    const semanticCategory = [mapSemanticCategory(category)];
+
+    const clothId = await registerCloth(
+      userId,
+      clothName,
+      category,
+      color,
+      "unknown",        // season
+      imagePath,
+      location,
+      JSON.parse(colorRgb || null),
+      JSON.parse(subColorRgb || null),
+      semanticCategory,
+      JSON.parse(styleType || "[]")
+    );
+
+    res.status(200).json({
+      message: 'Cloth registered successfully',
+      clothId: clothId
+    });
   } catch (error) {
     console.error('옷 등록 실패:', error);
     res.status(500).json({ error: error.message });
   }
 });
+
 
 // ✅ 이제 json 파서 선언
 app.use(express.json());
@@ -177,6 +208,23 @@ app.patch('/api/update-cloth/:clothId', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// ai 분석 api
+app.post('/api/analyze-category', upload.single('file'), async (req, res) => {
+  const imagePath = req.file?.path;
+  if (!imagePath) {
+    return res.status(400).json({ error: '이미지 파일이 필요합니다.' });
+  }
+
+  try {
+    const result = await analyzeClothImage(imagePath);
+    res.status(200).json(result);
+  } catch (error) {
+    console.error("❌ AI 분석 실패:", error.message);
+    res.status(500).json({ error: "AI 분석 실패" });
+  }
+});
+
 
 // 서버 시작
 const PORT = process.env.PORT || 5000;
