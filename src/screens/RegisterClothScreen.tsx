@@ -106,7 +106,7 @@ export default function RegisterClothScreen({ navigation }: any) {
       formData.append('clothName', clothName);
       formData.append('category', korToEngFineCategory[fineCategoryKor]);
       formData.append('location', location);
-      formData.append('styleType', selectedStyles.map(k => styleMap[k]).join(','));
+      formData.append('styleType', JSON.stringify(selectedStyles.map(k => styleMap[k])));
       formData.append('file', {
         uri: imageUri,
         name: 'photo.jpg',
