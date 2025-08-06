@@ -137,7 +137,9 @@ export async function registerClothWithAI(userId, clothName, category, location,
     worn_count: 0,
     last_worn: null
   });
-  
+
+    if (typeof category !== "string" || !category.trim()) category = "unknown";
+    console.log("🔥 저장 직전 category:", category, typeof category);
     const clothId = await registerCloth(
       userId,
       clothName,
@@ -215,6 +217,7 @@ export async function searchClothes(userId, keyword = "") {
 // ai 분석 등록 분리 함수
 export async function analyzeClothImage(imagePath) {
   const aiData = await fetchColorFromAI(imagePath);
+
   const category = aiData.category || "";
   const styleType = aiData.styleType || [];
   const color = aiData.color || "unknown";
