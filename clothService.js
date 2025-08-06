@@ -121,6 +121,23 @@ export async function registerClothWithAI(userId, clothName, category, location,
   }
 
   try {
+     console.log("🔥 저장 직전 category:", category, typeof category);
+  console.log("🔥 저장 직전 전체 데이터:", {
+    user_id: userId,
+    cloth_name: clothName,
+    category: category,
+    color: color,
+    color_rgb: colorRgb || null,
+    sub_color_rgb: subColorRgb || null,
+    season: season,
+    image_url: imagePath,
+    location: location,
+    semantic_category: semanticCategory || [],
+    styleType: styleType || [],
+    worn_count: 0,
+    last_worn: null
+  });
+  
     const clothId = await registerCloth(
       userId,
       clothName,
