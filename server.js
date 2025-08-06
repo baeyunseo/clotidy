@@ -9,7 +9,6 @@ import path from 'path';
 import fs from 'fs';
 import { registerClothWithAI, getClothes, deleteCloth, updateCloth, searchClothes } from './clothService.js';
 import { getClothById } from './clothService.js';
-import { mapSemanticCategory } from './clothService.js'; 
 import { analyzeClothImage, mapSemanticCategory } from './clothService.js';
 
 
@@ -42,8 +41,6 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
-// ✅ 파일 업로드 라우트 먼저 선언 (multipart/form-data 문제 방지)
-import { mapSemanticCategory } from './clothService.js'; // 위에 추가 필요
 
 app.post('/api/register-cloth', upload.single('file'), async (req, res) => {
   console.log('🧪 서버 코드 최신 버전 실행됨');
