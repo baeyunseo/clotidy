@@ -46,6 +46,7 @@ app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 import { mapSemanticCategory } from './clothService.js'; // 위에 추가 필요
 
 app.post('/api/register-cloth', upload.single('file'), async (req, res) => {
+  console.log('🧪 서버 코드 최신 버전 실행됨');
   console.log('🎯 req.file:', req.file);
   console.log('🎯 req.body:', req.body);
 
