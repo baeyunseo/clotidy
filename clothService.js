@@ -97,14 +97,6 @@ export async function registerClothWithAI(userId, clothName, category, location,
   let semanticCategory = [];
   let styleType = [];
 
-
-module.exports = {
-  mapSemanticCategory
-};
-
-
-
-
   try {
     const aiData = await fetchColorFromAI(imagePath);
 
@@ -116,12 +108,16 @@ module.exports = {
       ? { r: aiData.sub_color_rgb[0], g: aiData.sub_color_rgb[1], b: aiData.sub_color_rgb[2] }
       : null;
 
-    category = aiData.category || "";
+    // ✅ category fallback 처리
+    category = aiData.category ?? "unknown";
     semanticCategory = [mapSemanticCategory(category)];
     styleType = aiData.styleType || [];
-
   } catch (error) {
     console.error("❌ AI 분석 실패, 입력값만 저장:", error.message);
+
+    // ✅ 분석 실패 시에도 fallback 값 보장
+    category = category ?? "unknown";
+    semanticCategory = [mapSemanticCategory(category)];
   }
 
   try {
@@ -138,12 +134,13 @@ module.exports = {
       semanticCategory,
       styleType
     );
-    return clothId;  // ✅ clothId 명시적으로 리턴
+    return clothId;
   } catch (error) {
     console.error("❌ Firestore 저장 실패:", error.message);
     throw error;
   }
 }
+
 
 
 // 옷 단일 조회
