@@ -35,7 +35,11 @@ const upload = multer({ storage });
 
 const app = express();
 app.use(cors());
+
 //  업로드 이미지 static으로 서빙
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // ✅ 파일 업로드 라우트 먼저 선언 (multipart/form-data 문제 방지)
@@ -95,7 +99,6 @@ app.post('/api/register-cloth', upload.single('file'), async (req, res) => {
 
 
 // ✅ 이제 json 파서 선언
-app.use(express.json());
 
 // 유저 정보 저장
 app.post('/api/save-user', async (req, res) => {
