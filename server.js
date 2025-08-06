@@ -57,6 +57,9 @@ app.post('/api/register-cloth', upload.single('file'), async (req, res) => {
   let category = req.body.category ?? "unknown";
   console.log("🔥 최종 category 값:", category);
 
+  if (typeof category !== "string" || !category.trim()) {
+  category = "unknown";
+}
   const imagePath = req.file?.path;
 
   if (!imagePath) {
