@@ -97,41 +97,6 @@ export async function registerClothWithAI(userId, clothName, category, location,
   let semanticCategory = [];
   let styleType = [];
 
-  // ✅ 자동 분류 category → semantic_category 매핑
-function mapSemanticCategory(category) {
-  const fine_to_semantic = {
-    "backpack": "bags",
-    "belt": "accessories",
-    "blazer": "outerwear",
-    "blouse": "tops",
-    "boots": "shoes",
-    "cardigan": "outerwear",
-    "coat": "outerwear",
-    "dress": "all-body",
-    "earrings": "jewellery",
-    "flats": "shoes",
-    "handbag": "bags",
-    "hat": "hats",
-    "heels": "shoes",
-    "jacket": "outerwear",
-    "jeans": "bottoms",
-    "loafers": "shoes",
-    "necklace": "jewellery",
-    "pants": "bottoms",
-    "shorts": "bottoms",
-    "skirt": "bottoms",
-    "sleeveless top": "tops",
-    "sneakers": "shoes",
-    "socks": "accessories",
-    "sunglasses": "accessories",
-    "sweater": "tops",
-    "sweatpants": "bottoms",
-    "sweatshirt": "tops",
-    "tshirt": "tops"
-  };
-
-  return fine_to_semantic[category] || "unknown";
-}
 
 module.exports = {
   mapSemanticCategory
@@ -250,12 +215,36 @@ export async function analyzeClothImage(imagePath) {
 }
 
 // 카테고리 매핑 자동 추가 함수
-function mapSemanticCategory(category) {
+export function mapSemanticCategory(category) {
   const mapping = {
-    tshirt: 'tops',
-    shirt: 'tops',
-    shorts: 'bottoms',
-    skirt: 'bottoms',
+   "backpack": "bags",
+    "belt": "accessories",
+    "blazer": "outerwear",
+    "blouse": "tops",
+    "boots": "shoes",
+    "cardigan": "outerwear",
+    "coat": "outerwear",
+    "dress": "all-body",
+    "earrings": "jewellery",
+    "flats": "shoes",
+    "handbag": "bags",
+    "hat": "hats",
+    "heels": "shoes",
+    "jacket": "outerwear",
+    "jeans": "bottoms",
+    "loafers": "shoes",
+    "necklace": "jewellery",
+    "pants": "bottoms",
+    "shorts": "bottoms",
+    "skirt": "bottoms",
+    "sleeveless top": "tops",
+    "sneakers": "shoes",
+    "socks": "accessories",
+    "sunglasses": "accessories",
+    "sweater": "tops",
+    "sweatpants": "bottoms",
+    "sweatshirt": "tops",
+    "tshirt": "tops"
     // 추가 가능
   };
   return mapping[category] || 'unknown';
