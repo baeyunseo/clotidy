@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+tflite-runtime
+pillow
+numpy
+firebase-admin
+scikit-learn
+requests
+loguru
+python-dotenv

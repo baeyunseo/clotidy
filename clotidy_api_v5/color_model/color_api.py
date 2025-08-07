@@ -1,21 +1,13 @@
-from fastapi import FastAPI, File, UploadFile
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import File, UploadFile
 from PIL import Image
 import numpy as np
 from sklearn.cluster import KMeans
 import cv2
 from io import BytesIO
 from scipy.spatial import distance
+from fastapi import APIRouter
 
-app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+router = APIRouter()
 
 def rgb_to_hex(rgb):
     return '#{:02x}{:02x}{:02x}'.format(*rgb)
@@ -125,19 +117,31 @@ def extract_dominant_and_sub_color(image_np, mask, n_colors=4, sub_threshold=0.1
 
     return dominant, sub_color
 
-@app.post("/extract-colors/")
+@router.post("/extract-colors/")
 async def extract_colors(file: UploadFile = File(...)):
-    image = Image.open(BytesIO(await file.read())).convert("RGB")
-    image_np = np.array(image)
-    mask = generate_mask_from_image(image_np)
-    dominant_rgb, sub_rgb = extract_dominant_and_sub_color(image_np, mask)
+    try:
+        logger.info(f"📷 업로드된 파일: {file.filename}")
+        image = Image.open(BytesIO(await file.read())).convert("RGB")
+        image_np = np.array(image)
 
-    dominant_hex = rgb_to_hex(dominant_rgb) if dominant_rgb else None
-    simple_color = closest_recommended_color(dominant_rgb) if dominant_rgb else None
+        mask = generate_mask_from_image(image_np)
+        dominant_rgb, sub_rgb = extract_dominant_and_sub_color(image_np, mask)
 
-    return {
-        "dominant_rgb": dominant_rgb,
-        "dominant_hex": dominant_hex,
-        "color": simple_color,
-        "sub_rgb": sub_rgb
-    }
+        dominant_hex = rgb_to_hex(dominant_rgb) if dominant_rgb else None
+        simple_color = closest_recommended_color(dominant_rgb) if dominant_rgb else None
+
+        logger.success(f"🎨 추출 완료: {dominant_rgb} → {simple_color}")
+
+        return {
+            "dominant_rgb": dominant_rgb,
+            "dominant_hex": dominant_hex,
+            "color": simple_color,
+            "sub_rgb": sub_rgb
+        }
+
+    except Exception as e:
+        logger.error(f"❌ 색상 추출 실패: {e}")
+        return {"error": str(e)}
+
+
+__all__ = ["router"]

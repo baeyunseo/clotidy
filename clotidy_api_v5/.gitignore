@@ -1,0 +1,13 @@
+# ⚠️ 환경 변수 파일
+.env
+
+# ⚠️ Firebase 비공개 키
+firebase_key/
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# 로그 파일
+*.log
+
