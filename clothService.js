@@ -4,7 +4,7 @@ import {
   collection, addDoc, query, where, getDocs, doc, updateDoc, increment, deleteDoc 
 } from "firebase/firestore";
 import { db } from "./firebaseConfig.js";
-import { fetchColorFromAI } from "./aiService.js"; // AI 요청 함수
+import { fetchColorFromAI, fetchCategoryFromAI } from "./aiService.js"; // AI 요청 함수
 import { fetchSemanticCategoryFromAI } from "./aiService.js";
 
 
@@ -97,26 +97,27 @@ export async function registerClothWithAI(userId, clothName, category, location,
   let semanticCategory = [];
   let styleType = [];
 
-  try {
-    const aiData = await fetchColorFromAI(imagePath);
-
-    color = aiData.color || "unknown";
-    colorRgb = aiData.color_rgb
-      ? { r: aiData.color_rgb[0], g: aiData.color_rgb[1], b: aiData.color_rgb[2] }
+ try {
+    // 1) 색상 분석
+    const colorData = await fetchColorFromAI(imagePath);
+    color = colorData.color || "unknown";
+    colorRgb = colorData.color_rgb
+      ? { r: colorData.color_rgb[0], g: colorData.color_rgb[1], b: colorData.color_rgb[2] }
       : null;
-    subColorRgb = aiData.sub_color_rgb
-      ? { r: aiData.sub_color_rgb[0], g: aiData.sub_color_rgb[1], b: aiData.sub_color_rgb[2] }
+    subColorRgb = colorData.sub_color_rgb
+      ? { r: colorData.sub_color_rgb[0], g: colorData.sub_color_rgb[1], b: colorData.sub_color_rgb[2] }
       : null;
 
-    // ✅ category fallback 처리
-    category = aiData.category ?? "unknown";
+    // 2) 카테고리 분석 (전용 엔드포인트)
+    const catData = await fetchCategoryFromAI(imagePath);
+    category = (catData.category || "unknown").trim() || "unknown";
+    styleType = Array.isArray(catData.styleType) ? catData.styleType : [];
+
+    // semantic_category 매핑
     semanticCategory = [mapSemanticCategory(category)];
-    styleType = aiData.styleType || [];
   } catch (error) {
     console.error("❌ AI 분석 실패, 입력값만 저장:", error.message);
-
-    // ✅ 분석 실패 시에도 fallback 값 보장
-    category = category ?? "unknown";
+    category = (category ?? "unknown").trim() || "unknown";
     semanticCategory = [mapSemanticCategory(category)];
   }
 
@@ -216,16 +217,19 @@ export async function searchClothes(userId, keyword = "") {
 }
 // ai 분석 등록 분리 함수
 export async function analyzeClothImage(imagePath) {
-  const aiData = await fetchColorFromAI(imagePath);
+  const [colorData, catData] = await Promise.all([
+    fetchColorFromAI(imagePath),
+    fetchCategoryFromAI(imagePath),
+  ]);
 
-  const category = aiData.category || "";
-  const styleType = aiData.styleType || [];
-  const color = aiData.color || "unknown";
-  const colorRgb = aiData.color_rgb
-    ? { r: aiData.color_rgb[0], g: aiData.color_rgb[1], b: aiData.color_rgb[2] }
+  const category = (catData.category || "").trim();
+  const styleType = Array.isArray(catData.styleType) ? catData.styleType : [];
+  const color = colorData.color || "unknown";
+  const colorRgb = colorData.color_rgb
+    ? { r: colorData.color_rgb[0], g: colorData.color_rgb[1], b: colorData.color_rgb[2] }
     : null;
-  const subColorRgb = aiData.sub_color_rgb
-    ? { r: aiData.sub_color_rgb[0], g: aiData.sub_color_rgb[1], b: aiData.sub_color_rgb[2] }
+  const subColorRgb = colorData.sub_color_rgb
+    ? { r: colorData.sub_color_rgb[0], g: colorData.sub_color_rgb[1], b: colorData.sub_color_rgb[2] }
     : null;
 
   return { category, styleType, color, colorRgb, subColorRgb };

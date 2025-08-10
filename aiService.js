@@ -43,6 +43,35 @@ export async function fetchColorFromAI(imagePath) {
   }
 }
 
+// --- 새로 추가 ---
+// 카테고리 전용 호출
+export async function fetchCategoryFromAI(imagePath) {
+  try {
+    const formData = new FormData();
+    formData.append("file", fs.createReadStream(imagePath));
+
+    const response = await axios.post(
+      "http://54.79.167.144:8000/category", // 프론트가 알려준 카테고리 엔드포인트
+      formData,
+      {
+        headers: formData.getHeaders(),
+        timeout: 10000,
+      }
+    );
+
+    const {
+      category = "unknown",
+      styleType = []
+    } = response.data || {};
+
+    return { category, styleType };
+  } catch (error) {
+    console.error("❌ 카테고리 분석 실패:", error.message);
+    return { category: "unknown", styleType: [] };
+  }
+}
+
+
 export async function fetchSemanticCategoryFromAI(imagePath) {
   try {
     console.log("🎯 AI 의미 카테고리 분석 요청 중...");
