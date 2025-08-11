@@ -1,8 +1,6 @@
 // src/screens/BlockClothesListScreen.tsx
 // 옷장 위치별 옷 목록 화면
 
-// src/screens/BlockClothesListScreen.tsx
-
 import React, { useEffect, useState } from "react";
 import {
   View, Text, FlatList, StyleSheet, ActivityIndicator,

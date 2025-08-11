@@ -51,23 +51,29 @@ export default function RegisterClothScreen({ navigation }: any) {
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
 
+  // 최근 분석된 이미지 URI(중복 분석 방지)
+  const [lastAnalyzedForUri, setLastAnalyzedForUri] = useState<string>('');
+
   const styleOptions = Object.keys(styleMap);
   const fullFineList = Object.keys(korToEngFineCategory);
 
   // ---- 유틸 ----
   const normalizeEng = (s: string) => s?.toString().trim().toLowerCase().replace(/_/g, ' ') || '';
-  const toRgbObj = (rgb: any) => Array.isArray(rgb) ? { r: rgb[0], g: rgb[1], b: rgb[2] } : (rgb ?? null);
+  const toRgbObj = (rgb: any) =>
+    Array.isArray(rgb) ? { r: rgb[0], g: rgb[1], b: rgb[2] } :
+    (rgb && typeof rgb === 'object' ? rgb : null);
 
-  // fetch 헬퍼 (multipart)
+  const guessType = (name: string, fallback = 'image/jpeg') =>
+    name?.toLowerCase().endsWith('.png') ? 'image/png' : fallback;
+
   const postMultipart = async (url: string, formData: FormData, timeoutMs = 30000) => {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const res = await fetch(url, { method: 'POST', body: formData, signal: controller.signal });
-      const text = await res.text(); // 응답 파싱 전 원문 확보
+      const text = await res.text();
       let json: any;
       try { json = JSON.parse(text); } catch { json = { raw: text }; }
-
       console.log(`🌐 POST ${url} ->`, res.status, json);
       if (!res.ok) throw new Error(json?.error || `HTTP ${res.status}`);
       return json;
@@ -82,9 +88,18 @@ export default function RegisterClothScreen({ navigation }: any) {
     if (res.didCancel || !res.assets?.[0]?.uri) return;
 
     const asset = res.assets[0];
+    let name = asset.fileName || 'photo.jpg';
+    let type = asset.type || guessType(name);
+    if (!/\.(jpg|jpeg|png)$/i.test(name)) name += '.jpg';
+    // iOS HEIC 대비
+    if (/\.heic$/i.test(name) || type === 'image/heic') {
+      name = name.replace(/\.heic$/i, '.jpg');
+      type = 'image/jpeg';
+    }
+
     setImageUri(asset.uri!);
-    setImageName(asset.fileName || 'photo.jpg');
-    setImageType(asset.type || 'image/jpeg');
+    setImageName(name);
+    setImageType(type);
 
     // 분석값 초기화
     setAnalyzedCategoryEng('');
@@ -93,19 +108,12 @@ export default function RegisterClothScreen({ navigation }: any) {
     setAnalyzedColor('');
     setAnalyzedColorRgb(null);
     setAnalyzedSubColorRgb(null);
+    setLastAnalyzedForUri('');
   };
 
-  // ---- 서버 연결 확인 & 블록 로드 ----
+  // ---- 블록 로드 ----
   useEffect(() => {
     (async () => {
-      // healthz 체크 (서버 도달 여부 판단용)
-      try {
-        const res = await fetch(`${BASE_URL}/healthz`);
-        console.log('🟢 healthz:', res.status);
-      } catch (e: any) {
-        console.log('🔴 healthz fail:', e?.message);
-      }
-
       const uid = auth().currentUser?.uid;
       if (!uid) return;
       try {
@@ -119,62 +127,108 @@ export default function RegisterClothScreen({ navigation }: any) {
     })();
   }, []);
 
-  // ---- AI 분석 ----
-  const handleAnalyze = async () => {
-    if (!imageUri) return;
+  // ---- 공용: 이미지 분석 (항상 이걸 통해 호출) ----
+  const runAnalyze = async () => {
+    if (!imageUri) throw new Error('이미지를 먼저 선택해 주세요.');
     setAnalyzing(true);
     try {
       const fd = new FormData();
-      fd.append('file', { uri: imageUri, name: imageName, type: imageType } as any);
-      console.log('📤 analyze form:', { uri: imageUri, name: imageName, type: imageType });
+      fd.append('file', { uri: imageUri, name: imageName, type: imageType || guessType(imageName) } as any);
 
       const res: any = await postMultipart(`${BASE_URL}/api/analyze-category`, fd, 30000);
+      console.log('🧪 analyze response raw:', res);
 
-      const eng = normalizeEng(res?.category ?? '');
+      // 카테고리 키 폭넓게 흡수 (백엔드 유연 대응)
+      const catRaw =
+        res?.category ??
+        res?.fine_category ??
+        res?.predicted ??
+        res?.predicted_label ??
+        res?.label ??
+        res?.top1 ?? '';
+
+      const engCandidate =
+        typeof catRaw === 'string'
+          ? catRaw
+          : (catRaw?.name || catRaw?.label || '');
+
+      const eng = normalizeEng(engCandidate);
       const kor = engToKorFineCategory[eng] ?? '';
 
+      // 다양한 키 호환 (컬러)
+      const color = res?.color ?? res?.dominant_color ?? res?.mainColor ?? '';
+      const colorRgbRaw = res?.colorRgb ?? res?.color_rgb ?? res?.dominant_rgb ?? res?.dominantRgb ?? null;
+      const subRgbRaw  = res?.subColorRgb ?? res?.sub_color_rgb ?? res?.accent_rgb ?? res?.secondary_rgb ?? null;
+
+      const colorRgbObj = toRgbObj(colorRgbRaw);
+      const subRgbObj   = toRgbObj(subRgbRaw);
+
+      // 상태 반영 (UI에도 노출)
       setAnalyzedCategoryEng(eng);
-      setAnalyzedCategoryKor(kor);
-      setFineCategoryKor(kor);
+      setAnalyzedCategoryKor(kor || eng || '');   // ← 한글 매핑 실패 시 영문 fallback
+      setFineCategoryKor(kor);                    // 수동선택은 한글 리스트 기준 유지
+      setAnalyzedColor(color || '');
+      setAnalyzedColorRgb(colorRgbObj);
+      setAnalyzedSubColorRgb(subRgbObj);
+      setLastAnalyzedForUri(imageUri);
 
-      setAnalyzedColor(res?.color || '');
-      setAnalyzedColorRgb(toRgbObj(res?.colorRgb || res?.dominant_rgb || null));
-      setAnalyzedSubColorRgb(toRgbObj(res?.subColorRgb || res?.sub_rgb || null));
-
-      Alert.alert("분석 완료", kor ? `${kor} (AI 예측)` : "분류 결과를 찾을 수 없습니다.");
-    } catch (e: any) {
-      console.log('❌ analyze fail:', e?.message);
-      Alert.alert("AI 분석 실패", e?.message || "서버 연결/이미지 문제일 수 있습니다.");
+      return { eng, kor: kor || eng || '', color: color || '', colorRgb: colorRgbObj, subColorRgb: subRgbObj };
     } finally {
       setAnalyzing(false);
     }
   };
 
-  // ---- 등록 ----
+  // ---- (수동) AI 분석 버튼 ----
+  const handleAnalyze = async () => {
+    try {
+      const out = await runAnalyze();
+      Alert.alert("분석 완료", out.kor ? `${out.kor} (AI 예측)` : "분류 결과를 찾을 수 없습니다.");
+    } catch (e: any) {
+      console.log('❌ analyze fail:', e?.message);
+      Alert.alert("AI 분석 실패", e?.message || "서버 연결/이미지 문제일 수 있습니다.");
+    }
+  };
+
+  // ---- 등록 (항상 분석 먼저 실행 → 그 결과로 저장) ----
   const handleRegister = async () => {
     try {
       if (uploading) return;
       const uid = auth().currentUser?.uid;
-      if (!uid || !imageUri || !clothName.trim() || !location.trim() || !fineCategoryKor || selectedStyles.length === 0)
-        throw new Error('모든 필드를 입력하세요.');
+      if (!uid || !imageUri || !clothName.trim() || !location.trim())
+        throw new Error('이미지/이름/보관 위치는 필수입니다.');
 
       setUploading(true);
 
-      const categoryEng = korToEngFineCategory[fineCategoryKor] || analyzedCategoryEng || '';
+      // 최근 분석 동일 이미지면 스킵, 아니면 분석
+      if (lastAnalyzedForUri !== imageUri) {
+        try {
+          await runAnalyze();
+        } catch (err: any) {
+          throw new Error('AI 분석에 실패했습니다. 다시 시도해 주세요.');
+        }
+      }
+
+      // 카테고리 최종값 확정: 수동 선택 > 분석
+      const categoryEng =
+        korToEngFineCategory[fineCategoryKor] ||
+        analyzedCategoryEng ||
+        'unknown';
+
+      // 색상/보조색 확정: 분석 결과 사용
       const color = analyzedColor || '';
-      const colorRgb = analyzedColorRgb ? JSON.stringify(analyzedColorRgb) : '';
-      const subColorRgb = analyzedSubColorRgb ? JSON.stringify(analyzedSubColorRgb) : '';
+      const colorRgb = analyzedColorRgb ?? null;
+      const subColorRgb = analyzedSubColorRgb ?? null;
 
       const fd = new FormData();
       fd.append('userId', uid);
       fd.append('clothName', clothName.trim());
       fd.append('category', categoryEng);
       fd.append('color', color);
-      fd.append('colorRgb', colorRgb);
-      fd.append('subColorRgb', subColorRgb);
+      fd.append('colorRgb', colorRgb ? JSON.stringify(colorRgb) : '');
+      fd.append('subColorRgb', subColorRgb ? JSON.stringify(subColorRgb) : '');
       fd.append('location', location.trim());
       fd.append('styleType', JSON.stringify(selectedStyles.map(k => styleMap[k])));
-      fd.append('file', { uri: imageUri, name: imageName, type: imageType } as any);
+      fd.append('file', { uri: imageUri, name: imageName, type: imageType || guessType(imageName) } as any);
 
       console.log('📤 register form fields:', {
         userId: uid, clothName, categoryEng, color, colorRgb, subColorRgb, location,
@@ -203,6 +257,18 @@ export default function RegisterClothScreen({ navigation }: any) {
         {imageUri ? <Image source={{ uri: imageUri }} style={styles.img} /> : <Text style={{ color: '#aaa' }}>사진 선택</Text>}
       </TouchableOpacity>
 
+      {/* 분석 결과 미리보기 박스 */}
+      {(analyzedCategoryKor || analyzedColor) && (
+        <View style={styles.resultBox}>
+          <Text style={styles.resultTitle}>분석 결과</Text>
+          <Text>카테고리: {analyzedCategoryKor || analyzedCategoryEng || '-'}</Text>
+          <Text>메인 컬러: {analyzedColor || '-'}</Text>
+          <Text>
+            색상 RGB: {analyzedColorRgb ? `${analyzedColorRgb.r}, ${analyzedColorRgb.g}, ${analyzedColorRgb.b}` : '-'}
+          </Text>
+        </View>
+      )}
+
       <TouchableOpacity style={styles.analyzeBtn} onPress={handleAnalyze} disabled={!imageUri || analyzing || uploading}>
         <Text style={{ color: '#fff' }}>{analyzing ? '분석 중...' : 'AI 자동 분류'}</Text>
       </TouchableOpacity>
@@ -218,10 +284,16 @@ export default function RegisterClothScreen({ navigation }: any) {
       </TouchableOpacity>
       <Modal visible={showLocationModal} transparent animationType="fade">
         <TouchableOpacity style={styles.modalOverlay} onPress={() => setShowLocationModal(false)} activeOpacity={1}>
-          <View style={styles.modalContent}>
-            <TextInput value={locationSearch} onChangeText={setLocationSearch} placeholder="보관 위치 검색" style={styles.modalInput} autoFocus />
+          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+            <TextInput
+              value={locationSearch}
+              onChangeText={setLocationSearch}
+              placeholder="보관 위치 검색"
+              style={styles.modalInput}
+              autoFocus
+            />
             <FlatList
-              data={blockList.filter(k => k.includes(locationSearch.trim()))}
+              data={blockList.filter(k => k.toLowerCase().includes(locationSearch.trim().toLowerCase()))}
               keyExtractor={(item) => item}
               renderItem={({ item }) => (
                 <TouchableOpacity onPress={() => { setLocation(item); setShowLocationModal(false); }} style={styles.modalItem}>
@@ -245,10 +317,16 @@ export default function RegisterClothScreen({ navigation }: any) {
       </TouchableOpacity>
       <Modal visible={showCatModal} transparent animationType="fade">
         <TouchableOpacity style={styles.modalOverlay} onPress={() => setShowCatModal(false)} activeOpacity={1}>
-          <View style={styles.modalContent}>
-            <TextInput value={catSearch} onChangeText={setCatSearch} placeholder="카테고리 검색" style={styles.modalInput} autoFocus />
+          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+            <TextInput
+              value={catSearch}
+              onChangeText={setCatSearch}
+              placeholder="카테고리 검색"
+              style={styles.modalInput}
+              autoFocus
+            />
             <FlatList
-              data={fullFineList.filter(k => k.includes(catSearch.trim()))}
+              data={fullFineList.filter(k => k.toLowerCase().includes(catSearch.trim().toLowerCase()))}
               keyExtractor={(item) => item}
               renderItem={({ item }) => (
                 <TouchableOpacity onPress={() => { setFineCategoryKor(item); setShowCatModal(false); }} style={styles.modalItem}>
@@ -303,4 +381,6 @@ const styles = StyleSheet.create({
   modalContent: { width: 280, maxHeight: '70%', backgroundColor: '#fff', borderRadius: 10, padding: 16 },
   modalInput: { padding: 10, borderRadius: 8, backgroundColor: '#F6F6F8', marginBottom: 10 },
   modalItem: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#eee' },
+  resultBox: { padding: 10, borderWidth: 1, borderColor: '#e5e5e5', borderRadius: 8, marginBottom: 12, backgroundColor: '#fafafa' },
+  resultTitle: { fontWeight: 'bold', marginBottom: 6 },
 });

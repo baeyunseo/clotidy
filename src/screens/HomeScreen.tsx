@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   name: { fontWeight: "bold", fontSize: 14, color: "#222", marginBottom: 1 },
-  category: { color: "#222", fontWeight: "bold", fontSize: 13 },
+  category: { color: "#666", fontWeight: "bold", fontSize: 13 },
   coordiBtn: {
     marginTop: 10,
     backgroundColor: "#6AC892",
