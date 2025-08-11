@@ -2,6 +2,7 @@ import axios from "axios";
 import fs from "fs";
 import FormData from "form-data";
 
+// 
 export async function fetchColorFromAI(imagePath) {
   try {
     console.log("🎯 AI 분석 요청: 이미지 전송 중...");
@@ -10,7 +11,7 @@ export async function fetchColorFromAI(imagePath) {
     formData.append("file", fs.createReadStream(imagePath));
 
     const response = await axios.post(
-      "http://54.79.167.144:8000/extract-colors/",
+      "http://54.79.167.144:8000/extract-colors",
       formData,
       {
         headers: formData.getHeaders(),
@@ -80,7 +81,7 @@ export async function fetchSemanticCategoryFromAI(imagePath) {
     formData.append("file", fs.createReadStream(imagePath));
 
     const response = await axios.post(
-      "http://54.79.167.144:8000/extract-semantic-category/",  // 예시 URL (실제 AI 팀이 알려준 거로 바꿔야 함)
+      "http://54.79.167.144:8000/extract-semantic-category",  // 예시 URL (실제 AI 팀이 알려준 거로 바꿔야 함)
       formData,
       {
         headers: formData.getHeaders(),
