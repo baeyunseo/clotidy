@@ -6,7 +6,7 @@ import random
 import numpy as np
 from sklearn.metrics.pairwise import euclidean_distances
 from firebase_admin import firestore
-from clotidy_api_v5.recommend.situation_config import SITUATION_RULES
+from .situation_config import SITUATION_RULES
 #from .situation_config import SITUATION_RULES
 from .core_recommend import (
     get_clothes_by_user,
@@ -55,7 +55,7 @@ def normalize_styleTypes(styles):
     return ["daily"]
 
 
-@router.get("/recommend/situation/{situation_name}")
+@router.get("/{situation_name}")
 def recommend_for_situation(situation_name: str, user_id: str):
     logger.info(f"[요청] situation: {situation_name}, user_id: {user_id}")
 
@@ -171,7 +171,12 @@ def recommend_for_situation(situation_name: str, user_id: str):
 
 def build_final_outfits_with_situation(main_item, top_k_sets, user_clothes, temperature, situation_info, top_n=2):
     main_category = main_item["category"].strip().lower()
-    main_styles = [s.strip().lower() for s in main_item.get("styleType", []) if isinstance(s, str)]
+    main_styles = main_item.get("styleType", [])
+    if isinstance(main_styles, str):
+        main_styles = [main_styles]
+    main_styles = [s.strip().lower() for s in main_styles if isinstance(s, str)]
+
+
     final_recommendations = []
     seen_combinations = set()
 
@@ -270,4 +275,3 @@ def build_final_outfits_with_situation(main_item, top_k_sets, user_clothes, temp
     return final_recommendations[:top_n]
 
 __all__ = ["router"]
-

@@ -6,6 +6,8 @@ import cv2
 from io import BytesIO
 from scipy.spatial import distance
 from fastapi import APIRouter
+from loguru import logger
+
 
 router = APIRouter()
 
@@ -117,7 +119,7 @@ def extract_dominant_and_sub_color(image_np, mask, n_colors=4, sub_threshold=0.1
 
     return dominant, sub_color
 
-@router.post("/extract-colors/")
+@router.post("/")
 async def extract_colors(file: UploadFile = File(...)):
     try:
         logger.info(f"📷 업로드된 파일: {file.filename}")

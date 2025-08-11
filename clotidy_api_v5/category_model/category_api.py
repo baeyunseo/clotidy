@@ -75,7 +75,7 @@ def preprocess_image(image: Image.Image) -> np.ndarray:
 
 
 # 예측 엔드포인트
-@router.post("/category")
+@router.post("/")
 async def predict(file: UploadFile = File(...)):
     try:
         logger.info(f"📷 업로드된 파일: {file.filename}")

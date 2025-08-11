@@ -7,6 +7,6 @@ from recommend.situation_recommend import router as situation_router
 app = FastAPI()
 
 app.include_router(category_router, prefix="/category")
-app.include_router(color_router, prefix="/color")
+app.include_router(color_router, prefix="/extract-colors")
 app.include_router(core_router, prefix="/recommend")
 app.include_router(situation_router, prefix="/situation")

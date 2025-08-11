@@ -1,16 +1,19 @@
+# Standard library
 import os
 import json
+from typing import Optional, Dict, List
+
+# Third-party
 import numpy as np
 from dotenv import load_dotenv
 import firebase_admin
 from firebase_admin import credentials, initialize_app, firestore
-from fastapi import FastAPI, APIRouter, HTTPException  # ✅ APIRouter 추가
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from sklearn.metrics.pairwise import euclidean_distances
-from typing import Optional, Dict, List
 from loguru import logger
 import requests
-import uvicorn
+
 
 
 router = APIRouter()
@@ -188,8 +191,13 @@ def calculate_style_score(main_styles: List[str], matched_items: List[Dict]) -> 
 
 # ✅ 핵심: 최종 코디 생성
 def build_final_outfits(main_item: Dict, top_k_sets: List[Dict], user_clothes: List[Dict], temperature: float, top_n: int = 2) -> List[Dict]: 
-    main_category = main_item["category"].strip().lower()
-    main_styles = [s.strip().lower() for s in main_item.get("styleType", []) if isinstance(s, str)]
+    main_category = (main_item.get("category") or "").strip().lower()
+
+    main_styles = main_item.get("styleType", [])
+    if isinstance(main_styles, str):          # ← 문자열이면 리스트로 감싸기
+        main_styles = [main_styles]
+    main_styles = [s.strip().lower() for s in main_styles if isinstance(s, str)]
+
     final_recommendations = []
     seen_combinations = set()
 
@@ -284,7 +292,7 @@ def build_final_outfits(main_item: Dict, top_k_sets: List[Dict], user_clothes: L
 
 
 
-@router.get("/recommend/{clothId}")
+@router.get("/{clothId}")
 async def recommend(clothId: str):
     try:
         main_item = get_cloth_by_id(clothId)
@@ -337,4 +345,3 @@ async def recommend(clothId: str):
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
 __all__ = ["router"]
-
