@@ -27,6 +27,27 @@ load_dotenv(dotenv_path=env_path)
 
 router = APIRouter()
 
+# ✅ ADD: 안전 정규화 유틸
+def safe_lower(x):
+    if x is None:
+        return ""
+    if isinstance(x, str):
+        return x.strip().lower()
+    if isinstance(x, (list, tuple)):
+        # 리스트면 요소별로 처리한 리스트 반환
+        return [safe_lower(v) for v in x if v is not None]
+    return str(x).strip().lower()
+
+def to_lower_set(x):
+    """str 또는 list/tuple을 받아 소문자 '집합'으로 변환"""
+    if isinstance(x, (list, tuple)):
+        return {safe_lower(v) for v in x if v is not None and safe_lower(v)}
+    if x is None:
+        return set()
+    v = safe_lower(x)
+    return {v} if v else set()
+
+
 def normalize_styleType(style):
 
     if isinstance(style, list):
@@ -83,27 +104,43 @@ def recommend_for_situation(situation_name: str, user_id: str):
     situation_style_types = situation["styleType"]
     situation_style_types_lower = [s.lower() for s in situation_style_types]
 
+    ALLOWED_MAIN_SEM = {"tops", "bottoms", "all-body"}
+
+    # ✅ 1차 후보군 필터
     candidate_main_items = [
-        cloth for cloth in user_clothes
-        if cloth.get("category", "").strip().lower() in situation["categories"]
+        cloth
+        for cloth in user_clothes
+        if safe_lower(cloth.get("category")) in situation["categories"]
+        and (to_lower_set(cloth.get("semantic_category")) & ALLOWED_MAIN_SEM)
         and any(
             style in situation_style_types_lower
             for style in normalize_styleTypes(cloth.get("styleType", []))
         )
-        and cloth.get("semantic_category", "").strip().lower() in {"tops", "bottoms", "all-body"}
-        and SEASONAL_SCORES.get(season, {}).get(cloth.get("category", "").strip().lower(), 0.0) >= -0.2
+        and SEASONAL_SCORES.get(season, {}).get(
+            safe_lower(cloth.get("category")), 0.0
+        ) >= -0.2
     ]
     logger.info(f"[1차 후보군] {len(candidate_main_items)}개")
 
+    # ✅ 1차 후보 없음 → 유사 스타일로 확장
     if not candidate_main_items:
         logger.info("[1차 후보 없음] 유사 스타일로 재시도")
+
         expanded_styles = get_compatible_style_types(situation_style_types)
+        expanded_styles = [s.lower() for s in expanded_styles]
+
         candidate_main_items = [
-            cloth for cloth in user_clothes
-            if cloth.get("category", "").strip().lower() in situation["categories"]
-            and any(style in expanded_styles for style in normalize_styleTypes(cloth.get("styleType", [])))
-            and cloth.get("semantic_category", "").strip().lower() in {"tops", "bottoms", "all-body"}
-            and SEASONAL_SCORES.get(season, {}).get(cloth.get("category", "").strip().lower(), 0.0) >= -0.2
+            cloth
+            for cloth in user_clothes
+            if safe_lower(cloth.get("category")) in situation["categories"]
+            and (to_lower_set(cloth.get("semantic_category")) & ALLOWED_MAIN_SEM)
+            and any(
+                style in expanded_styles
+                for style in normalize_styleTypes(cloth.get("styleType", []))
+            )
+            and SEASONAL_SCORES.get(season, {}).get(
+                safe_lower(cloth.get("category")), 0.0
+            ) >= -0.2
         ]
         logger.info(f"[확장 후보군] {len(candidate_main_items)}개")
 
@@ -114,7 +151,10 @@ def recommend_for_situation(situation_name: str, user_id: str):
         main_item = random.choice(user_clothes)
         logger.info(f"[랜덤 선택] 후보 없어서 전체 옷 중 선택됨")
 
-    top_k_sets = recommend_outfits_from_main(main_item, user_clothes, outfit_samples, K=30)
+    top_k_sets = recommend_outfits_from_main(
+    main_item, user_clothes, outfit_samples, K=30,
+    main_semantic=main_item.get("semantic_category")
+    )
     logger.info(f"[추천 조합 수] {len(top_k_sets)}개")
 
     final_recommendations = build_final_outfits_with_situation(
@@ -137,16 +177,15 @@ def recommend_for_situation(situation_name: str, user_id: str):
         }        
         matched_items_filtered = []
 
-        # dress 포함 시 bottoms, tops 제외 필터
-        has_dress = False
+        # 드레스(= all-body) 존재 여부 탐지
+        has_dress = any(
+            "all-body" in to_lower_set(item.get("semantic_category"))
+            for item in outfit["matched_items"]
+        )
+
         for item in outfit["matched_items"]:
-            if item.get("semantic_category", "").strip().lower() == "all-body":
-                has_dress = True
-                break
-        for item in outfit["matched_items"]:
-            sem_cat = item.get("semantic_category", "").strip().lower()
-            if has_dress and sem_cat in {"tops", "bottoms"}:
-                # 드레스가 있으면 tops, bottoms는 응답에서 제외
+            sem_set = to_lower_set(item.get("semantic_category"))
+            if has_dress and ({"tops", "bottoms"} & sem_set):
                 continue
             matched_items_filtered.append({
                 "clothId": item.get("clothId"),
@@ -155,8 +194,7 @@ def recommend_for_situation(situation_name: str, user_id: str):
                 "cloth_name": item.get("cloth_name"),
                 "image_url": item.get("image_url"),
                 "location": item.get("location")
-
-            })        
+            }) 
         result.append({
             "main": main_info,
             "matched_items": matched_items_filtered
@@ -170,12 +208,13 @@ def recommend_for_situation(situation_name: str, user_id: str):
 
 
 def build_final_outfits_with_situation(main_item, top_k_sets, user_clothes, temperature, situation_info, top_n=2):
-    main_category = main_item["category"].strip().lower()
+    main_category = safe_lower(main_item.get("category"))  # ✅ CHANGED
+
+    # styleType 정규화 그대로 유지
     main_styles = main_item.get("styleType", [])
     if isinstance(main_styles, str):
         main_styles = [main_styles]
     main_styles = [s.strip().lower() for s in main_styles if isinstance(s, str)]
-
 
     final_recommendations = []
     seen_combinations = set()
@@ -190,11 +229,14 @@ def build_final_outfits_with_situation(main_item, top_k_sets, user_clothes, temp
     for outfit_sample in top_k_sets:
         matched_items = []
         used_cloth_ids = set()
-        used_semantic_categories = {main_item.get("semantic_category", "").strip().lower()}
 
+        # ✅ CHANGED: main semantic이 list라도 안전하게 set으로
+        used_semantic_categories = set(to_lower_set(main_item.get("semantic_category")))
+
+        # 메인 카테고리 제외
         filtered_outfit = {
             k: v for k, v in outfit_sample["outfit"].items()
-            if v["fine_category"].strip().lower() != main_category
+            if safe_lower(v.get("fine_category")) != main_category  # ✅ CHANGED
         }
 
         total_color_score = 0
@@ -206,12 +248,13 @@ def build_final_outfits_with_situation(main_item, top_k_sets, user_clothes, temp
                 continue
 
             cloth_id = match.get("clothId")
-            semantic_category = match.get("semantic_category", "").strip().lower()
-            if cloth_id in used_cloth_ids or semantic_category in used_semantic_categories:
+            # ✅ CHANGED: 세맨틱 set 기준 중복 체크
+            match_sem_set = to_lower_set(match.get("semantic_category"))
+            if cloth_id in used_cloth_ids or (used_semantic_categories & match_sem_set):
                 continue
 
             used_cloth_ids.add(cloth_id)
-            used_semantic_categories.add(semantic_category)
+            used_semantic_categories |= match_sem_set
             matched_items.append(match)
 
             sample_rgb = np.array(item["color_rgb"]).reshape(1, -1)
@@ -221,17 +264,19 @@ def build_final_outfits_with_situation(main_item, top_k_sets, user_clothes, temp
             total_color_score += color_score
             color_score_count += 1
 
-        # --- 최소 상의-하의 조건 체크 ---
-        semantic_cats = {item.get("semantic_category", "").strip().lower() for item in matched_items}
-        main_semantic = main_item.get("semantic_category", "").strip().lower()
-        if main_semantic:
-            semantic_cats.add(main_semantic)
+        # --- 최소 상의-하의 조건/드레스 충돌 체크 ---
+        # ✅ CHANGED: 세맨틱을 모두 set으로 합치기
+        semantic_cats = set()
+        for it in matched_items:
+            semantic_cats |= to_lower_set(it.get("semantic_category"))
+        semantic_cats |= to_lower_set(main_item.get("semantic_category"))
+
         has_tops = "tops" in semantic_cats
         has_bottoms = "bottoms" in semantic_cats
         has_dress = "all-body" in semantic_cats
+
         if (has_tops and not has_bottoms) or (has_bottoms and not has_tops):
             continue  # 조건 미충족 시 스킵
-
         if has_dress and (has_tops or has_bottoms):
             continue
 
@@ -243,20 +288,20 @@ def build_final_outfits_with_situation(main_item, top_k_sets, user_clothes, temp
 
         seasonal_score = 0.0
         for item in matched_items:
-            fine = item.get("category", "").strip().lower()
+            fine = safe_lower(item.get("category"))  # ✅ CHANGED
             seasonal_score += SEASONAL_SCORES.get(season, {}).get(fine, 0.0)
 
         situation_score = 0.0
+        situation_style_lower = [s.lower() for s in situation_info["styleType"]]  # ✅ ADD
         for item in matched_items:
-            if item.get("category", "").strip().lower() in situation_info["categories"]:
+            if safe_lower(item.get("category")) in situation_info["categories"]:
                 situation_score += 1.0
-            if normalize_styleType(item.get("styleType", "")) in [s.lower() for s in situation_info["styleType"]]:
+            if normalize_styleType(item.get("styleType", "")) in situation_style_lower:
                 situation_score += 1.0
 
-        final_score = (avg_color_score / 10) + style_score * 10 + seasonal_score*1.5 + situation_score * 0.8
+        final_score = (avg_color_score / 10) + style_score * 10 + seasonal_score * 1.5 + situation_score * 0.8
 
         combo_signature = (main_item.get("clothId"),) + tuple(sorted([item["clothId"] for item in matched_items]))
-        #combo_signature = tuple(sorted([item["clothId"] for item in matched_items]))
         if combo_signature in seen_combinations:
             continue
         seen_combinations.add(combo_signature)
@@ -273,5 +318,6 @@ def build_final_outfits_with_situation(main_item, top_k_sets, user_clothes, temp
 
     final_recommendations.sort(key=lambda x: x["final_score"], reverse=True)
     return final_recommendations[:top_n]
+
 
 __all__ = ["router"]
