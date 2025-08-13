@@ -7,8 +7,7 @@ import { db } from './firebaseConfig.js';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { registerCloth, registerClothWithAI, getClothes, deleteCloth, updateCloth, searchClothes } from './clothService.js';
-import { getClothById } from './clothService.js';
+import { registerCloth, registerClothWithAI, getClothes, deleteCloth, updateCloth, searchClothes, getLastWorn, setLastWorn } from './clothService.js';
 import { analyzeClothImage, mapSemanticCategory } from './clothService.js';
 
 // 이미지 업로드용 폴더 생성
@@ -228,6 +227,46 @@ app.post('/api/analyze-category', upload.single('file'), async (req, res) => {
   } catch (error) {
     console.error("❌ AI 분석 실패:", error.message);
     res.status(500).json({ error: "AI 분석 실패" });
+  }
+});
+
+// [GET] 특정 옷의 마지막 착용일만 단건 조회
+// 응답 예: { last_worn: "2025-08-12T10:22:00.000Z" }  또는 { last_worn: null }
+app.get('/api/last-worn/:clothId', async (req, res) => {
+  try {
+    const { clothId } = req.params;
+    const lastWorn = await getLastWorn(clothId);
+    return res.status(200).json({ last_worn: lastWorn });
+  } catch (err) {
+    return res.status(404).json({ error: err.message });
+  }
+});
+
+// [PATCH] 특정 옷의 마지막 착용일을 프론트에서 지정해서 저장
+// Body 예: { "last_worn": "2025-08-10T00:00:00.000Z", "alsoIncrement": true }
+app.patch('/api/last-worn/:clothId', async (req, res) => {
+  try {
+    const { clothId } = req.params;
+    const { last_worn, alsoIncrement = false } = req.body || {};
+    await setLastWorn(clothId, last_worn, { alsoIncrement });
+    return res.status(200).json({ message: 'Last worn updated' });
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
+  }
+});
+
+// [POST] 지금 방금 착용으로 처리(카운트 +1, 마지막 착용일=지금)
+// 프론트가 버튼 한 번으로 기록할 때 사용
+app.post('/api/increase-worn/:clothId', async (req, res) => {
+  try {
+    const { clothId } = req.params;
+    // 기존 함수 재사용: worn_count+1, last_worn=now
+    await updateCloth(clothId, { last_worn: new Date() });
+    // worn_count 증가를 함께 원하면:
+    // await increaseWornCount(clothId);
+    return res.status(200).json({ message: 'Worn recorded' });
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
   }
 });
 

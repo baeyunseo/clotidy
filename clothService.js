@@ -1,7 +1,7 @@
 // clothService.js
 
 import { 
-  collection, addDoc, query, where, getDocs, doc, updateDoc, increment, deleteDoc 
+  collection, addDoc, query, where, getDocs, getDoc, doc, updateDoc, increment, deleteDoc 
 } from "firebase/firestore";
 import { db } from "./firebaseConfig.js";
 import { fetchColorFromAI, fetchCategoryFromAI } from "./aiService.js"; // AI 요청 함수
@@ -270,6 +270,37 @@ export function mapSemanticCategory(category) {
   };
   return mapping[category] || 'unknown';
 }
+
+// 마지막 착용일 단건 조회
+export async function getLastWorn(clothId) {
+  const clothRef = doc(db, "clothes", clothId);
+  const snap = await getDoc(clothRef);
+  if (!snap.exists()) throw new Error("해당 옷을 찾을 수 없습니다.");
+  return snap.data().last_worn || null;
+}
+
+// 마지막 착용일 직접 설정 (ISO 문자열 또는 타임스탬프/Date 허용)
+export async function setLastWorn(clothId, lastWorn, opts = { alsoIncrement: false }) {
+  const clothRef = doc(db, "clothes", clothId);
+
+  // 입력값을 Date로 표준화
+  const toDate = (v) => {
+    if (!v) return new Date();
+    if (v instanceof Date) return v;
+    const d = new Date(v);
+    if (isNaN(d.getTime())) throw new Error("유효하지 않은 날짜 형식입니다.");
+    return d;
+  };
+
+  const payload = { last_worn: toDate(lastWorn) };
+  if (opts?.alsoIncrement) {
+    payload.worn_count = increment(1);
+  }
+
+  await updateDoc(clothRef, payload);
+  return true;
+}
+
 
 
 
