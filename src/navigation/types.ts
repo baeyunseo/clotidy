@@ -43,11 +43,8 @@ export type RootStackParamList = {
   BlockClothesList: { location: string };
   Alarm: undefined;
   Closet: undefined;
-<<<<<<< HEAD
   Calendar: undefined;
-=======
    EditCloth: { clothId: string };
->>>>>>> 18c137e07e1d20ccd3a7864af05fc3588c47b27b
 };
 
   
