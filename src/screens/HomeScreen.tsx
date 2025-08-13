@@ -87,7 +87,7 @@ export default function HomeScreen() {
     }, [])
   );
 
-  // ✅ 타입 적용 (block: BlockType)
+  // 블록의 위치/크기 계산
   const getBlockRect = (block: BlockType) => {
     if (!block.coords || block.coords.length === 0) return {
       top: 0, left: 0, width: cellSize, height: cellSize
@@ -114,7 +114,7 @@ export default function HomeScreen() {
     return `${BASE_URL}/${url.replace(/^\//, '')}`;
   };
 
-  // 리스트 스타일 감성 통일! (BlockClothesListScreen과 동일하게)
+  // 리스트カード
   const renderItem = ({ item }: { item: ClothItem }) => (
     <View style={styles.card}>
       <Image source={{ uri: getImageUrl(item.image_url) }} style={styles.image} />
@@ -137,13 +137,21 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
+
+      {/* ------- 上部バー：左=Settings / 中央=Logo / 右=Search ------- */}
       <View style={styles.logoRow}>
+        <TouchableOpacity onPress={() => navigation.navigate("Settings")} style={styles.iconBtn}>
+          <Image source={require("../../assets/icons/settings.png")} style={styles.settingsIcon} />
+        </TouchableOpacity>
+
         <Image source={require("../../assets/images/clotidy1.png")} style={styles.logo} />
-        <TouchableOpacity onPress={() => navigation.navigate("Search")}>
+
+        <TouchableOpacity onPress={() => navigation.navigate("Search")} style={styles.iconBtn}>
           <Image source={require("../../assets/icons/search_resized.png")} style={styles.searchIcon} />
         </TouchableOpacity>
       </View>
 
+      {/* タブ切替 */}
       <View style={styles.tabContainer}>
         <TouchableOpacity onPress={() => setActiveTab("closet")}>
           <Text style={[styles.tab, activeTab === "closet" && styles.activeTab]}>옷장</Text>
@@ -229,19 +237,28 @@ export default function HomeScreen() {
         />
       )}
 
+      {/* 下部タブバー */}
       <View style={styles.tabBar}>
         <TouchableOpacity onPress={() => navigation.navigate("Home")}>
-          <Image source={require("../../assets/icons/home.png")} style={styles.tabIcon} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate("Alarm")}>
-          <Image source={require("../../assets/icons/bell.png")} style={styles.tabIcon} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate({ name: 'RegisterCloth', params: { imageUri: "" } })}>
-          <Image source={require("../../assets/icons/camera.png")} style={styles.tabIcon} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate("Settings")}>
-          <Image source={require("../../assets/icons/settings.png")} style={styles.tabIcon} />
-        </TouchableOpacity>
+  　　   <Image source={require("../../assets/icons/home.png")} 
+          style={[styles.tabIcon, styles.homeIcon]} />
+    　　　</TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate("Alarm")}>
+          <Image source={require("../../assets/icons/bell.png")}
+           style={[styles.tabIcon, styles.homeIcon]} />
+          </TouchableOpacity>
+                  
+        　 <TouchableOpacity onPress={() => navigation.navigate({ name: 'RegisterCloth', params: { imageUri: "" } })}>
+          　<Image source={require("../../assets/icons/camera.png")} 
+          style={[styles.tabIcon, styles.homeIcon]} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate("Settings")}>
+            <Image source={require("../../assets/icons/hanger.png")} style={styles.tabIcon} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate("Calendar")}>
+            <Image source={require("../../assets/icons/daily.png")} style={styles.tabIcon} />
+            </TouchableOpacity>
+            
       </View>
     </View>
   );
@@ -249,21 +266,51 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FFFEFA" },
-  logoRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", marginTop: 45, marginBottom: 5 },
-  logo: { width: 126, height: 30, left: 30, resizeMode: "contain" },
-  searchIcon: { width: 60, height: 60, left: 90 },
+
+  // 上部バー
+  logoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between", // 左=設定 / 中央=ロゴ / 右=検索
+    marginTop: 45,
+    marginBottom: 5,
+    paddingHorizontal: 16,
+  },
+  iconBtn: { padding: 6 },
+  settingsIcon: { width: 35, height: 35, resizeMode: "contain" },
+  searchIcon: { width: 55, height: 55, resizeMode: "contain" },
+  logo: { width: 126, height: 30, resizeMode: "contain", left:10 },
+
+  // タブ
   tabContainer: { flexDirection: "row", justifyContent: "center", marginBottom: 10 },
   tab: { marginHorizontal: 20, fontSize: 16, color: "#777" },
   activeTab: { color: "#6AC892", fontWeight: "bold", borderBottomWidth: 2, borderColor: "#6AC892" },
+
   scrollContent: { paddingHorizontal: 20 },
   userBox: { borderWidth: 1, borderColor: "#6AC892", borderRadius: 12, padding: 15, marginBottom: 20 },
   sectionTitle: { fontSize: 16, color: "#37955F", fontWeight: "bold" },
   sectionDesc: { color: "#555", marginTop: 5 },
+
   gridAbsoluteBox: { position: 'relative', alignSelf: 'center', marginTop: 10 },
   gridText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
   gridSubText: { color: "#fff", fontSize: 12, marginTop: 4 },
-  tabBar: { flexDirection: "row", justifyContent: "space-around", paddingVertical: 12, borderTopWidth: 1, borderColor: "#ddd", backgroundColor: "#FFFEFA", position: "absolute", bottom: 0, width: "100%" },
-  tabIcon: { width: 24, height: 24 },
+
+  tabBar: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderColor: "#ddd",
+    backgroundColor: "#FFFEFA",
+    position: "absolute",
+    bottom: 0,
+    width: "100%"
+  },
+  tabIcon: { width: 35, height: 35 },
+  homeIcon: { width: 40, height: 40 },
+
+
+  // カード/リスト
   card: {
     width: '48%',
     margin: '1%',
@@ -280,11 +327,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F3F3',
     borderRadius: 12,
   },
-  infoBox: {
-    padding: 10,
-    minHeight: 94,
-    justifyContent: "space-between",
-  },
+  infoBox: { padding: 10, minHeight: 94, justifyContent: "space-between" },
   name: { fontWeight: "bold", fontSize: 14, color: "#222", marginBottom: 1 },
   category: { color: "#666", fontWeight: "bold", fontSize: 13 },
   coordiBtn: {

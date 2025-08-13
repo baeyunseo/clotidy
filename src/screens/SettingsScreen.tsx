@@ -40,21 +40,28 @@ export default function MyPageScreen() {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.tabBar}>
-        <TouchableOpacity onPress={() => navigation.navigate("Home")}>
-                  <Image source={require("../../assets/icons/home.png")} style={styles.tabIcon} />
-                </TouchableOpacity>
-                 <TouchableOpacity onPress={() => navigation.navigate("Alarm")}>
-                  <Image source={require("../../assets/icons/bell.png")} style={styles.tabIcon} />
-                </TouchableOpacity>
-          
-                <TouchableOpacity onPress={() => navigation.navigate({ name: 'RegisterCloth', params: { imageUri: "" } })}>
-                  <Image source={require("../../assets/icons/camera.png")} style={styles.tabIcon} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => navigation.navigate("Settings")}>
-                  <Image source={require("../../assets/icons/settings.png")} style={styles.tabIcon} />
-                </TouchableOpacity>
-    
+  
+                <View style={styles.tabBar}>
+                       <TouchableOpacity onPress={() => navigation.navigate("Home")}>
+                 　　   <Image source={require("../../assets/icons/home.png")} 
+                         style={[styles.tabIcon, styles.homeIcon]} />
+                   　　　</TouchableOpacity>
+                         <TouchableOpacity onPress={() => navigation.navigate("Alarm")}>
+                         <Image source={require("../../assets/icons/bell.png")}
+                          style={[styles.tabIcon, styles.homeIcon]} />
+                         </TouchableOpacity>
+                                 
+                       　 <TouchableOpacity onPress={() => navigation.navigate({ name: 'RegisterCloth', params: { imageUri: "" } })}>
+                         　<Image source={require("../../assets/icons/camera.png")} 
+                         style={[styles.tabIcon, styles.homeIcon]} />
+                           </TouchableOpacity>
+                           <TouchableOpacity onPress={() => navigation.navigate("Settings")}>
+                           <Image source={require("../../assets/icons/hanger.png")} style={styles.tabIcon} />
+                           </TouchableOpacity>
+                           <TouchableOpacity onPress={() => navigation.navigate("Calendar")}>
+                           <Image source={require("../../assets/icons/daily.png")} style={styles.tabIcon} />
+                           </TouchableOpacity>
+                           
       </View>
     </View>
   );
@@ -119,7 +126,11 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   tabIcon: {
-    width: 24,
-    height: 24,
+    width: 35,
+    height: 35,
+  },
+   homeIcon: {
+    width: 40,
+    height: 40,
   },
 });
