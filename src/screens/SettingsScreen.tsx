@@ -33,7 +33,8 @@ export default function MyPageScreen() {
           <Text style={styles.cardText}>내 정보</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.card}>
+        <TouchableOpacity style={styles.card}
+        onPress={() => navigation.navigate('Calendar')}>
           <Image source={require('../../assets/icons/settings.png')} style={styles.icon} />
           <Text style={styles.cardText}>설정</Text>
         </TouchableOpacity>

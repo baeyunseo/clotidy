@@ -24,6 +24,7 @@ import MyPageScreen from './src/screens/MyPageScreen';
 import EditMyPageScreen from './src/screens/EditMyPageScreen';
 import SearchScreen from './src/screens/SearchScreen';
 import SearchResultScreen from './src/screens/SearchResultScreen';
+import CalendarScreen from './src/screens/CalendarScreen';
 import RegisterClothScreen from './src/screens/RegisterClothScreen';
 import BlockClothesListScreen from './src/screens/BlockClothesListScreen';
 import CoordinateScreen from './src/screens/CoordinateScreen';
@@ -45,7 +46,8 @@ export default function App() {
         <Stack.Screen name="MyPage" component={MyPageScreen} />
         <Stack.Screen name="EditMyPage" component={EditMyPageScreen} />
         <Stack.Screen name="Search" component={SearchScreen} />
-        <Stack.Screen name="SearchResult" component={SearchResultScreen} />        
+        <Stack.Screen name="SearchResult" component={SearchResultScreen} />
+        <Stack.Screen name="Calendar" component={CalendarScreen} />        
         <Stack.Screen name="ClosetIndex" component={ClosetIndexScreen} />
         <Stack.Screen name="ClosetSelect" component={ClosetSelectScreen} />
         <Stack.Screen name="ClosetGrid" component={ClosetGridScreen} />

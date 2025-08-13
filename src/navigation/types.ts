@@ -43,6 +43,7 @@ export type RootStackParamList = {
   BlockClothesList: { location: string };
   Alarm: undefined;
   Closet: undefined;
+  Calendar: undefined;
 };
 
   
