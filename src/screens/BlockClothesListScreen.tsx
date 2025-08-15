@@ -88,6 +88,17 @@ export default function BlockClothesListScreen() {
     }
   };
 
+  // 착용(오늘로 기록)
+  const handleWear = async (clothId: string) => {
+    try {
+      await axios.post(`${BASE_URL}/api/increase-worn/${clothId}`);
+      Alert.alert('기록 완료', '오늘 착용으로 기록했어요.');
+      // 필요시 fetchClothes(); // 즉시 반영 원하면 주석 해제
+    } catch (err: any) {
+      Alert.alert('오류', err?.message || '착용 기록에 실패했습니다.');
+    }
+  };
+
   // 각 옷 카드
   const renderItem = ({ item }: { item: Cloth }) => (
     <View style={styles.card}>
@@ -99,7 +110,9 @@ export default function BlockClothesListScreen() {
       >
         <Image source={infoIcon} style={styles.infoIcon} />
       </TouchableOpacity>
+
       <Image source={{ uri: getImageUrl(item.imageUrl) }} style={styles.image} />
+
       <View style={styles.infoBox}>
         {/* 이름과 삭제 아이콘 우측 */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -108,14 +121,27 @@ export default function BlockClothesListScreen() {
             <Image source={deleteIcon} style={styles.deleteIcon} />
           </TouchableOpacity>
         </View>
+
         <Text style={styles.meta}>{item.category}</Text>
-        <TouchableOpacity
-          style={styles.coordiBtn}
-          onPress={() => navigation.navigate("Coordinate")}
-        >
-          <Text style={styles.coordiText}>✔️  코디 제안</Text>
-        </TouchableOpacity>
+
+        {/* 액션 버튼 2개 - 반반 */}
+        <View style={styles.actionsRow}>
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.actionPrimary, { marginRight: 8 }]}
+            onPress={() => navigation.navigate("Coordinate")}
+          >
+            <Text style={styles.actionPrimaryText}>✔️  코디 제안</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.actionGhost]}
+            onPress={() => handleWear(item.id)}
+          >
+            <Text style={styles.actionGhostText}>👟  착용</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+
       {/* 삭제 재확인 모달 */}
       <Modal visible={deleteModalId === item.id} transparent animationType="fade">
         <Pressable style={styles.modalBg} onPress={() => setDeleteModalId(null)}>
@@ -132,6 +158,7 @@ export default function BlockClothesListScreen() {
           </View>
         </Pressable>
       </Modal>
+
       {/* 상세 정보/수정 모달 */}
       <Modal visible={infoModalId === item.id} transparent animationType="fade">
         <Pressable style={styles.modalBg} onPress={() => setInfoModalId(null)}>
@@ -225,18 +252,38 @@ const styles = StyleSheet.create({
     color: "#666",
     marginTop: 4,
   },
-  coordiBtn: {
+
+  /* ▶▶ 새로 추가된 버튼 라인 */
+  actionsRow: {
+    flexDirection: 'row',
     marginTop: 10,
-    backgroundColor: "#6AC892",
+  },
+  actionBtn: {
+    flex: 1,
     borderRadius: 8,
     paddingVertical: 8,
     alignItems: "center",
+    borderWidth: 1,
   },
-  coordiText: {
+  actionPrimary: {
+    backgroundColor: "#6AC892",
+    borderColor: "#6AC892",
+  },
+  actionPrimaryText: {
     color: "#fff",
     fontWeight: "bold",
     fontSize: 13,
   },
+  actionGhost: {
+    backgroundColor: "#fff",
+    borderColor: "#6AC892",
+  },
+  actionGhostText: {
+    color: "#37955F",
+    fontWeight: "bold",
+    fontSize: 13,
+  },
+
   // info 아이콘 (우상단)
   infoIconBox: {
     position: "absolute",
