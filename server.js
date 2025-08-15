@@ -10,6 +10,9 @@ import fs from 'fs';
 import { registerCloth, registerClothWithAI, getClothes, deleteCloth, updateCloth, searchClothes, getLastWorn, setLastWorn } from './clothService.js';
 import { analyzeClothImage, mapSemanticCategory } from './clothService.js';
 import { fetchPurchaseRecommendation } from './aiService.js';
+import { fetchRecommendByCloth, fetchRecommendBySituation } from './aiService.js';
+import { getClothById } from './clothService.js';
+
 
 function toAbsoluteUrl(req, maybeRelative) {
   if (!maybeRelative) return null;
@@ -361,7 +364,67 @@ app.post('/api/recommend/purchase', upload.single('file'), async (req, res) => {
   }
 });
 
+// --- 특정 옷 기준 코디 추천 ---
+// 예: GET /api/recommend/abc123?user_id=UID&weather=sunny
+app.get('/api/recommend/:clothId', async (req, res) => {
+  try {
+    const { clothId } = req.params;
+    const { user_id, weather, lat, lon } = req.query;
 
+    if (!user_id) {
+      return res.status(400).json({ error: 'user_id가 필요합니다.' });
+    }
+
+    // (권장) 소유권 검증: clothId가 해당 user_id의 것인지 확인
+    try {
+      const cloth = await getClothById(clothId);
+      if (cloth.user_id !== user_id) {
+        return res.status(403).json({ error: '권한이 없습니다.' });
+      }
+    } catch (e) {
+      return res.status(404).json({ error: '해당 옷을 찾을 수 없습니다.' });
+    }
+
+    const data = await fetchRecommendByCloth({
+      clothId,
+      userId: user_id,
+      weather,
+      lat,
+      lon
+    });
+
+    return res.status(200).json(data);
+  } catch (err) {
+    console.error('코디 추천 실패:', err?.message);
+    return res.status(500).json({ error: '코디 추천 실패' });
+  }
+});
+
+// --- 상황별 코디 추천 ---
+// 예: GET /api/situation/출근?user_id=UID&weather=rainy
+app.get('/api/situation/:situationName', async (req, res) => {
+  try {
+    const { situationName } = req.params;
+    const { user_id, weather, lat, lon } = req.query;
+
+    if (!user_id) {
+      return res.status(400).json({ error: 'user_id가 필요합니다.' });
+    }
+
+    const data = await fetchRecommendBySituation({
+      situationName,
+      userId: user_id,
+      weather,
+      lat,
+      lon
+    });
+
+    return res.status(200).json(data);
+  } catch (err) {
+    console.error('상황별 코디 추천 실패:', err?.message);
+    return res.status(500).json({ error: '상황별 코디 추천 실패' });
+  }
+});
 
 
 // 서버 시작

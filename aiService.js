@@ -1,4 +1,5 @@
 import axios from "axios";
+const AI_BASE = "http://54.79.167.144:8000";
 import fs from "fs";
 import FormData from "form-data";
 // === [ADD] 생성형 AI 베이스 URL (8001 포트) ===
@@ -135,6 +136,44 @@ export async function fetchPurchaseRecommendation({
   //   decision: "buy" | "hold" | "no",
   //   top_matches: [{ image_url: "...", cloth_id: "...", score: 0.92 }, ...]
   // }
+  return data;
+}
+
+export async function fetchRecommendByCloth({ clothId, userId, weather, lat, lon }) {
+  const params = {};
+  if (userId) params.user_id = userId;
+  if (weather) params.weather = weather;
+  if (lat) params.lat = lat;
+  if (lon) params.lon = lon;
+
+  const url = `${AI_BASE}/recommend/${encodeURIComponent(clothId)}`;
+  const { data } = await axios.get(url, { params, timeout: 10000 });
+  return data;
+}
+
+//특정 옷 기반 코디
+export async function fetchRecommendByCloth({ clothId, userId, weather, lat, lon }) {
+  const params = {};
+  if (userId) params.user_id = userId;
+  if (weather) params.weather = weather;
+  if (lat) params.lat = lat;
+  if (lon) params.lon = lon;
+
+  const url = `${AI_BASE}/recommend/${encodeURIComponent(clothId)}`;
+  const { data } = await axios.get(url, { params, timeout: 10000 });
+  return data;
+}
+
+// 상황 별 추천
+export async function fetchRecommendBySituation({ situationName, userId, weather, lat, lon }) {
+  const params = {};
+  if (userId) params.user_id = userId;     // 상황별은 user_id 필수 스펙
+  if (weather) params.weather = weather;
+  if (lat) params.lat = lat;
+  if (lon) params.lon = lon;
+
+  const url = `${AI_BASE}/situation/${encodeURIComponent(situationName)}`;
+  const { data } = await axios.get(url, { params, timeout: 10000 });
   return data;
 }
 
