@@ -9,6 +9,14 @@ import path from 'path';
 import fs from 'fs';
 import { registerCloth, registerClothWithAI, getClothes, deleteCloth, updateCloth, searchClothes, getLastWorn, setLastWorn } from './clothService.js';
 import { analyzeClothImage, mapSemanticCategory } from './clothService.js';
+import { fetchPurchaseRecommendation } from './aiService.js';
+
+function toAbsoluteUrl(req, maybeRelative) {
+  if (!maybeRelative) return null;
+  if (/^https?:\/\//i.test(maybeRelative)) return maybeRelative;
+  const clean = String(maybeRelative).replace(/^\.?\/*/, '');
+  return `${req.protocol}://${req.get('host')}/${clean}`;
+}
 
 // 이미지 업로드용 폴더 생성
 const uploadDir = './uploads';
@@ -269,6 +277,90 @@ app.post('/api/increase-worn/:clothId', async (req, res) => {
     return res.status(400).json({ error: err.message });
   }
 });
+
+// === [ADD] 구매 추천: 상위 3~5개 유사 이미지 + 결론 반환 ===
+// 요청: multipart/form-data
+//   - file: 구매하려는 옷 이미지 (필수)
+//   - userId: Firebase UID (필수)
+//   - topK: 3~5 (선택, 기본 5)
+//
+// 응답:
+// {
+//   decision: "buy" | "hold" | "no",
+//   top_matches: [{ cloth_id, image_url, score }]
+// }
+app.post('/api/recommend/purchase', upload.single('file'), async (req, res) => {
+  try {
+    const targetImagePath = req.file?.path;
+    const { userId } = req.body;
+    const topK = Math.min(Math.max(parseInt(req.body?.topK ?? '5', 10), 3), 5);
+
+    if (!targetImagePath) {
+      return res.status(400).json({ error: '구매 대상 이미지(file)가 필요합니다.' });
+    }
+    if (!userId) {
+      return res.status(400).json({ error: 'userId가 필요합니다.' });
+    }
+
+    // 1) 유저 옷장 이미지 로드
+    const clothes = await getClothes(userId); // [{ id, image_url, ... }]
+    const closetList = (clothes || [])
+      .filter(c => !!c.image_url)
+      .map(c => {
+        const abs = toAbsoluteUrl(req, c.image_url);
+        return { cloth_id: c.id, image_url: abs };
+      });
+
+    const closetImageUrls = closetList.map(x => x.image_url);
+    const urlToClothId = new Map(closetList.map(x => [x.image_url, x.cloth_id]));
+
+    // 2) AI(8001) 호출
+    const aiResp = await fetchPurchaseRecommendation({
+      targetImagePath,
+      userId,
+      closetImageUrls,
+      topK
+    });
+
+    // 3) 응답 정규화(여러 형태를 모두 흡수)
+    function normalizeTopMatches(raw) {
+      if (!raw) return [];
+      return raw
+        .map(item => {
+          // 형태 A: "https://.../img.jpg"
+          if (typeof item === 'string') {
+            return {
+              image_url: item,
+              cloth_id: urlToClothId.get(item) || null,
+              score: null
+            };
+          }
+          // 형태 B: { image_url, cloth_id?, score? }
+          if (item && typeof item === 'object') {
+            const image_url = item.image_url || null;
+            const cloth_id = item.cloth_id || (image_url ? urlToClothId.get(image_url) : null) || null;
+            const score = typeof item.score === 'number' ? item.score : null;
+            return image_url ? { image_url, cloth_id, score } : null;
+          }
+          return null;
+        })
+        .filter(Boolean)
+        .slice(0, topK);
+    }
+
+    const topMatches = normalizeTopMatches(aiResp?.top_matches);
+    const decision = aiResp?.decision || 'hold';
+
+    return res.status(200).json({
+      decision,
+      top_matches: topMatches
+    });
+  } catch (err) {
+    console.error('구매 추천 실패:', err);
+    return res.status(500).json({ error: '구매 추천 처리에 실패했습니다.' });
+  }
+});
+
 
 
 
