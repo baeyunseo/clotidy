@@ -4,7 +4,8 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  View, Text, StyleSheet, Image, ScrollView, ActivityIndicator, TouchableOpacity, Alert
+  View, Text, StyleSheet, Image, ScrollView, ActivityIndicator,
+  TouchableOpacity, Alert
 } from 'react-native';
 import axios from 'axios';
 import auth from '@react-native-firebase/auth';
@@ -14,7 +15,9 @@ const BASE_URL = 'http://54.79.167.144:5000';
 
 const MODES = ['situation', 'item'] as const;
 type Mode = typeof MODES[number];
-const SITUATIONS = ['데일리', '출근', '데이트', '여행', '운동', '파티'] as const;
+
+// ✅ 상황 프리셋 변경
+const SITUATIONS = ['데이트', '학교', '격식', '여행', '소개팅', '출근'] as const;
 type Situation = typeof SITUATIONS[number];
 
 type Item = {
@@ -24,7 +27,7 @@ type Item = {
   name?: string;
   category?: string;
   image_url?: string;
-  lastWorn?: string;
+  lastWorn?: string; // 화면에선 항상 문자열
   semantic_category?: string;
 };
 
@@ -32,9 +35,16 @@ type Outfit = { items: Item[]; score?: number; reason?: string };
 
 export default function CoordiRecommendationScreen() {
   // seedClothId(아이템 기반), situationName(상황 기본값)
-  const route = useRoute<{ key: string; name: string; params?: { seedClothId?: string; situationName?: Situation } }>();
+  const route = useRoute<{ key: string; name: string; params?: { seedClothId?: string; situationName?: string } }>();
   const seedClothId = route.params?.seedClothId;
-  const initialSituation = (route.params?.situationName as Situation) || '데일리';
+
+  // 라우트 값이 프리셋에 없으면 첫 항목(데이트)로 폴백
+  const pickedSituation = route.params?.situationName;
+  const initialSituation = (
+    pickedSituation && (SITUATIONS as readonly string[]).includes(pickedSituation)
+      ? pickedSituation
+      : SITUATIONS[0]
+  ) as Situation;
 
   const [mode, setMode] = useState<Mode>(seedClothId ? 'item' : 'situation');
   const [situation, setSituation] = useState<Situation>(initialSituation);
@@ -45,6 +55,10 @@ export default function CoordiRecommendationScreen() {
   const [anchor, setAnchor] = useState<Item | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // 디버그: 서버 원본 응답 확인용 토글 & 원문 저장
+  const [showDebug, setShowDebug] = useState(false);
+  const [rawPayload, setRawPayload] = useState<any>(null);
+
   const run = async (fn: () => Promise<void>) => {
     setLoading(true);
     setErrorMsg(null);
@@ -54,6 +68,7 @@ export default function CoordiRecommendationScreen() {
     try {
       await fn();
     } catch (e: any) {
+      console.log('[Coordinate] error:', e?.message, e?.response?.data);
       setErrorMsg(e?.response?.data?.error || e?.message || '서버 응답이 없습니다.');
     } finally {
       setLoading(false);
@@ -66,9 +81,12 @@ export default function CoordiRecommendationScreen() {
     if (!uid) throw new Error('로그인이 필요합니다.');
 
     const url = `${BASE_URL}/api/situation/${encodeURIComponent(situation)}?user_id=${encodeURIComponent(uid)}`;
-    const res = await axios.get(url, { timeout: 10000 });
+    console.log('[Coordinate] GET', url);
+    const res = await axios.get(url, { timeout: 12000 });
 
     const root = (res.data?.data ?? res.data) || {};
+    setRawPayload(root);
+
     setWeather(root.weather || root.meta?.weather || null);
 
     // 서버가 기준아이템을 내려주면 반영
@@ -91,10 +109,14 @@ export default function CoordiRecommendationScreen() {
 
     // 1) 존재/소유권
     try {
-      const check = await axios.get(`${BASE_URL}/api/get-cloth/${encodeURIComponent(seedClothId)}`, { timeout: 8000 });
+      const checkUrl = `${BASE_URL}/api/get-cloth/${encodeURIComponent(seedClothId)}`;
+      console.log('[Coordinate] GET', checkUrl);
+      const check = await axios.get(checkUrl, { timeout: 8000 });
       const cloth = check.data || {};
+
       // 기준 아이템 먼저 고정 노출
       setAnchor(normalizeItem(cloth));
+
       if (cloth.user_id && cloth.user_id !== uid) {
         throw new Error('이 아이템은 현재 로그인한 사용자 소유가 아닙니다. (권한 오류)');
       }
@@ -107,9 +129,12 @@ export default function CoordiRecommendationScreen() {
 
     // 2) 추천 호출
     const url = `${BASE_URL}/api/recommend/${encodeURIComponent(seedClothId)}?user_id=${encodeURIComponent(uid)}`;
+    console.log('[Coordinate] GET', url);
     const res = await axios.get(url, { timeout: 15000 });
 
     const root = (res.data?.data ?? res.data) || {};
+    setRawPayload(root);
+
     setWeather(root.weather || root.meta?.weather || null);
 
     // 서버가 anchor를 다시 주면 갱신, 아니면 기존 anchor 유지
@@ -222,7 +247,9 @@ export default function CoordiRecommendationScreen() {
                       <View style={styles.itemTextBox}>
                         <Text style={styles.itemName}>{item.cloth_name || item.name || '아이템'}</Text>
                         {!!item.category && <Text style={styles.itemCategory}>{item.category}</Text>}
-                        {!!item.lastWorn && <Text style={styles.lastWorn}>마지막 착용일 : {formatDate(item.lastWorn)}</Text>}
+                        {!!item.lastWorn && (
+                          <Text style={styles.lastWorn}>마지막 착용일 : {formatDate(item.lastWorn)}</Text>
+                        )}
                       </View>
                     </View>
                   ))}
@@ -232,6 +259,24 @@ export default function CoordiRecommendationScreen() {
             ))
           )}
         </>
+      )}
+
+      {/* 디버그: 서버 원본 확인 토글 */}
+      {!loading && (
+        <View style={{ marginTop: 10 }}>
+          <TouchableOpacity onPress={() => setShowDebug(v => !v)}>
+            <Text style={{ color: '#999', textAlign: 'center' }}>
+              {showDebug ? '디버그 숨기기' : '디버그 보기'}
+            </Text>
+          </TouchableOpacity>
+          {showDebug && rawPayload && (
+            <View style={styles.debugBox}>
+              <Text style={styles.debugText}>
+                {safeStringify(rawPayload)}
+              </Text>
+            </View>
+          )}
+        </View>
       )}
     </ScrollView>
   );
@@ -267,7 +312,7 @@ function toAbs(u?: string) {
 }
 
 function getAnchor(json: any): Item | null {
-  const raw = json?.anchor || json?.seed || json?.base || null;
+  const raw = json?.anchor || json?.seed || json?.base || json?.selected || null;
   if (!raw) return null;
   return normalizeItem(raw);
 }
@@ -296,7 +341,6 @@ function asReason(...vals: any[]): string | undefined {
 function extractOutfits(json: any): Outfit[] {
   if (!json) return [];
 
-  // 1) 흔한 키들
   const candidateArrays: any[] | undefined =
     json.recommendations || json.outfits || json.combos || json.combinations ||
     json.sets || json.suggestions || json.coordis || json.coordinates ||
@@ -304,7 +348,6 @@ function extractOutfits(json: any): Outfit[] {
 
   if (Array.isArray(candidateArrays)) {
     const mapped = candidateArrays.map((entry: any): Outfit | null => {
-      // entry 내부에서 아이템 배열/객체 찾기
       const items = normalizeItemsArray(
         entry.items ?? entry.list ?? entry.parts ?? entry.elements ?? entry.look ?? entry.set
       );
@@ -312,29 +355,24 @@ function extractOutfits(json: any): Outfit[] {
       const score = asNumber(entry.score ?? entry.similarity ?? entry.rank);
       if (items.length > 0) return { items, score, reason };
 
-      // slot 형태(top/bottom 등)
       const flat = flattenSlots(entry);
       if (flat.length > 0) return { items: flat, score, reason };
 
       return null;
     });
 
-    // 🔧 타입가드로 null 제거 (TS 만족)
     const list: Outfit[] = mapped.filter((x): x is Outfit => x !== null);
     if (list.length) return list;
   }
 
-  // 2) 루트가 슬롯(top/bottom 등)인 경우
   const flatRoot = flattenSlots(json);
   if (flatRoot.length) return [{ items: flatRoot }];
 
-  // 3) 루트에 list/parts 등만 있는 경우
   if (Array.isArray(json.list) || Array.isArray(json.parts) || Array.isArray(json.elements)) {
     const items = normalizeItemsArray(json.list ?? json.parts ?? json.elements);
     if (items.length) return [{ items }];
   }
 
-  // 4) 혹시 단일 추천 세트 객체 (items만 있는) 형태
   if (Array.isArray(json.items)) {
     const items = normalizeItemsArray(json.items);
     if (items.length) return [{ items }];
@@ -345,9 +383,10 @@ function extractOutfits(json: any): Outfit[] {
 
 function normalizeItemsArray(xs: any): Item[] {
   if (!Array.isArray(xs)) return [];
-  return xs.map(normalizeItem).filter(Boolean) as Item[];
+  return xs.map(normalizeItem).filter((v): v is Item => !!v);
 }
 
+/** Firestore Timestamp/Date/number/string → Item(lastWorn은 문자열) */
 function normalizeItem(x: any): Item | null {
   if (!x) return null;
   if (typeof x === 'string') return { image_url: x };
@@ -357,6 +396,11 @@ function normalizeItem(x: any): Item | null {
   if (image_url && !/^https?:\/\//i.test(image_url)) {
     image_url = `${BASE_URL}/${String(image_url).replace(/^\.?\/*/, '')}`;
   }
+
+  const rawLast =
+    x.lastWorn ?? x.last_worn ?? x.last_worn_date ?? x.lastWornDate ?? x.lastWear;
+  const lastWornStr = formatDateAny(rawLast) || undefined;
+
   return {
     id,
     cloth_id: x.cloth_id || x.id || x.clothId,
@@ -364,7 +408,7 @@ function normalizeItem(x: any): Item | null {
     name: x.name || x.cloth_name || x.title,
     category: x.category || x.type,
     image_url,
-    lastWorn: x.lastWorn || x.last_worn || x.last_worn_date || undefined,
+    lastWorn: lastWornStr,
     semantic_category: x.semantic_category || x.semanticCategory,
   };
 }
@@ -396,10 +440,30 @@ function renderWeather(w: any) {
   return pieces.join(' · ');
 }
 
-function formatDate(v?: string) {
+/** Timestamp/Date/number/string → 'YYYY-MM-DD' */
+function formatDateAny(v?: any): string {
   if (!v) return '';
-  if (/^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0, 10);
-  return v;
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  if (typeof v === 'object' && (('seconds' in v) || ('_seconds' in v))) {
+    const s = (v.seconds ?? v._seconds) as number;
+    if (typeof s === 'number') return new Date(s * 1000).toISOString().slice(0, 10);
+  }
+  if (typeof v === 'number') return new Date(v).toISOString().slice(0, 10);
+  if (typeof v === 'string') {
+    if (/^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0, 10);
+    const t = Date.parse(v);
+    if (!Number.isNaN(t)) return new Date(t).toISOString().slice(0, 10);
+    return v;
+  }
+  return '';
+}
+
+function formatDate(v?: string) {
+  return formatDateAny(v);
+}
+
+function safeStringify(v: any) {
+  try { return JSON.stringify(v, null, 2); } catch { return String(v); }
 }
 
 /* ===================== 스타일 ===================== */
@@ -456,4 +520,8 @@ const styles = StyleSheet.create({
   score: { color: '#999', marginTop: 6, fontSize: 12, textAlign: 'right' },
 
   errorText: { color: '#D74B4B', marginTop: 8, fontSize: 14, textAlign: 'center' },
+
+  // 디버그 박스
+  debugBox: { marginTop: 8, backgroundColor: '#fff', borderRadius: 8, padding: 10, borderWidth: 1, borderColor: '#eee' },
+  debugText: { fontSize: 12, color: '#666' },
 });

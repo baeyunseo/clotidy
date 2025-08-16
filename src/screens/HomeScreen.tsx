@@ -3,7 +3,8 @@
 
 import React, { useState, useCallback } from "react";
 import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, StatusBar, Dimensions, FlatList,
+  View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, StatusBar,
+  Dimensions, FlatList, ActivityIndicator, Alert, Modal, Pressable
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import auth from "@react-native-firebase/auth";
@@ -11,24 +12,24 @@ import axios from "axios";
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 
-// ✅ 타입 정의
 type Coord = { x: number; y: number };
-type BlockType = {
-  name: string;
-  coords: Coord[];
-  items?: number;
-};
+type BlockType = { name: string; coords: Coord[]; items?: number };
 
 type ClothItem = {
   id: string;
   image_url: string;
   cloth_name: string;
   category?: string;
-  last_worn_date?: string;
   location?: string;
+  user_id?: string;
 };
 
 const BASE_URL = "http://54.79.167.144:5000";
+const toAbs = (u?: string) => (!u ? "" : /^https?:\/\//i.test(u) ? u : `${BASE_URL}/${String(u).replace(/^\/?/, "")}`);
+
+// 아이콘
+const deleteIcon = require("../../assets/icons/delete.png");
+const infoIcon = require("../../assets/icons/Info.png");
 
 export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState<"closet" | "list">("closet");
@@ -39,67 +40,74 @@ export default function HomeScreen() {
   const [rowCount, setRowCount] = useState(4);
   const [colCount, setColCount] = useState(3);
 
+  const [wearingId, setWearingId] = useState<string | null>(null);
+  const [deleteModalId, setDeleteModalId] = useState<string | null>(null);
+  const [infoModalId, setInfoModalId] = useState<string | null>(null);
+
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const gridWidth = Dimensions.get("window").width - 40;
   const cellSize = gridWidth / colCount;
 
-  useFocusEffect(
-    useCallback(() => {
-      const fetchUserData = async () => {
-        try {
-          const uid = auth().currentUser?.uid;
-          if (!uid) return;
+  const fetchUserData = useCallback(async () => {
+    try {
+      const uid = auth().currentUser?.uid;
+      if (!uid) return;
 
-          const [userRes, closetRes, clothesRes] = await Promise.all([
-            axios.get(`${BASE_URL}/api/user/${uid}`),
-            axios.get(`${BASE_URL}/api/closet-layout/${uid}`),
-            axios.get(`${BASE_URL}/api/get-clothes/${uid}`)
-          ]);
+      const [userRes, closetRes, clothesRes] = await Promise.all([
+        axios.get(`${BASE_URL}/api/user/${uid}`),
+        axios.get(`${BASE_URL}/api/closet-layout/${uid}`),
+        axios.get(`${BASE_URL}/api/get-clothes/${uid}`)
+      ]);
 
-          const userData = userRes.data;
-          const closetData = closetRes.data;
-          const clothesData: ClothItem[] = clothesRes.data;
+      const userData = userRes.data;
+      const closetData = closetRes.data;
 
-          if (userData.name) setUserName(userData.name);
+      const mapped: ClothItem[] = (clothesRes.data || []).map((d: any) => ({
+        id: String(d.id),
+        cloth_name: d.cloth_name ?? d.name ?? "아이템",
+        image_url: toAbs(d.image_url ?? d.thumbnail ?? ""),
+        category: d.category ?? "",
+        location: d.location ?? "",
+        user_id: d.user_id,
+      }));
 
-          const updatedBlocks = closetData.closet_layout.map((block: BlockType) => {
-            const itemCount = clothesData.filter((item: ClothItem) =>
-              (item.location ?? '').trim() === (block.name ?? '').trim()
-            ).length;
-            return { ...block, items: itemCount };
-          });
+      if (userData.name) setUserName(userData.name);
 
-          setClosetBlocks(updatedBlocks);
-          setClothes(clothesData);
-          setClothingCount(clothesData.length);
+      const updatedBlocks = (closetData.closet_layout || []).map((block: BlockType) => {
+        const itemCount = mapped.filter((item) =>
+          (item.location ?? '').trim() === (block.name ?? '').trim()
+        ).length;
+        return { ...block, items: itemCount };
+      });
 
-          if (closetData.layout_type) {
-            const [cols, rows] = closetData.layout_type.split("x").map(Number);
-            setColCount(cols || 3);
-            setRowCount(rows || 4);
-          }
-        } catch (err) {
-          console.error("오류 발생:", err);
-        }
-      };
+      setClosetBlocks(updatedBlocks);
+      setClothes(mapped);
+      setClothingCount(mapped.length);
 
-      fetchUserData();
-    }, [])
-  );
+      if (closetData.layout_type) {
+        const [cols, rows] = closetData.layout_type.split("x").map(Number);
+        setColCount(cols || 3);
+        setRowCount(rows || 4);
+      }
+    } catch (err) {
+      console.error("오류 발생:", err);
+    }
+  }, []);
 
-  // 블록의 위치/크기 계산
+  useFocusEffect(useCallback(() => {
+    fetchUserData();
+  }, [fetchUserData]));
+
   const getBlockRect = (block: BlockType) => {
     if (!block.coords || block.coords.length === 0) return {
       top: 0, left: 0, width: cellSize, height: cellSize
     };
-
-    const rows = block.coords.map((c: Coord) => c.x);
-    const cols = block.coords.map((c: Coord) => c.y);
+    const rows = block.coords.map((c) => c.x);
+    const cols = block.coords.map((c) => c.y);
     const minRow = Math.min(...rows);
     const maxRow = Math.max(...rows);
     const minCol = Math.min(...cols);
     const maxCol = Math.max(...cols);
-
     return {
       top: (rowCount - maxRow - 1) * cellSize,
       left: minCol * cellSize,
@@ -108,29 +116,129 @@ export default function HomeScreen() {
     };
   };
 
-  const getImageUrl = (url: string) => {
-    if (!url) return "";
-    if (url.startsWith("http")) return url;
-    return `${BASE_URL}/${url.replace(/^\//, '')}`;
+  // 착용: 서버에만 기록(표시는 안 함)
+  const handleWear = async (cloth: ClothItem) => {
+    try {
+      const uid = auth().currentUser?.uid;
+      if (!uid) return Alert.alert("안내", "로그인이 필요합니다.");
+      if (cloth.user_id && cloth.user_id !== uid) {
+        return Alert.alert("안내", "내 소유의 아이템만 기록할 수 있어요.");
+      }
+      setWearingId(cloth.id);
+      await axios.patch(`${BASE_URL}/api/last-worn/${encodeURIComponent(cloth.id)}`, {
+        last_worn: new Date().toISOString(),
+        alsoIncrement: true,
+      });
+      Alert.alert('완료', '오늘 착용으로 기록했어요.');
+    } catch (e: any) {
+      console.error("착용 실패:", e?.response?.status, e?.message, e?.response?.data);
+      Alert.alert("오류", "착용 기록에 실패했습니다.");
+    } finally {
+      setWearingId(null);
+    }
   };
 
-  // 리스트카드
+  // 삭제
+  const handleDelete = async (clothId: string) => {
+    try {
+      await axios.delete(`${BASE_URL}/api/delete-cloth/${encodeURIComponent(clothId)}`);
+      setDeleteModalId(null);
+      // 목록에서 제거
+      setClothes(prev => prev.filter(c => c.id !== clothId));
+      // 블록 카운트 갱신
+      setClosetBlocks(prev => prev.map(b => ({
+        ...b,
+        items: (b.items ?? 0) - (clothes.some(c => c.id === clothId && (c.location ?? '').trim() === (b.name ?? '').trim()) ? 1 : 0)
+      })));
+      setClothingCount(prev => Math.max(0, prev - 1));
+    } catch (err: any) {
+      Alert.alert("삭제 실패", err?.message || "삭제에 실패했습니다.");
+    }
+  };
+
   const renderItem = ({ item }: { item: ClothItem }) => (
     <View style={styles.card}>
-      <Image source={{ uri: getImageUrl(item.image_url) }} style={styles.image} />
+      {/* Info 아이콘 (이미지 우상단) */}
+      <TouchableOpacity
+        style={styles.infoIconBox}
+        onPress={() => setInfoModalId(item.id)}
+        hitSlop={{ top:10, bottom:10, left:10, right:10 }}
+      >
+        <Image source={infoIcon} style={styles.infoIcon} />
+      </TouchableOpacity>
+
+      <Image source={{ uri: item.image_url }} style={styles.image} />
+
       <View style={styles.infoBox}>
-        <Text style={styles.name}>{item.cloth_name}</Text>
+        {/* 이름 + 삭제 아이콘 */}
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+          <Text style={styles.name}>{item.cloth_name}</Text>
+          <TouchableOpacity onPress={() => setDeleteModalId(item.id)}>
+            <Image source={deleteIcon} style={styles.deleteIcon} />
+          </TouchableOpacity>
+        </View>
+
         <Text style={styles.category}>{item.category || "카테고리 없음"}</Text>
-        <Text style={styles.meta}>
-          마지막 착용일 : {item.last_worn_date && item.last_worn_date !== "0000.00.00" ? item.last_worn_date : "-"}
-        </Text>
-        <TouchableOpacity
-          style={styles.coordiBtn}
-          onPress={() => navigation.navigate('Coordinate')} // 그대로 두되, 필요 시 seedClothId 넘겨도 됨
-        >
-          <Text style={styles.coordiText}>✔️  코디 제안</Text>
-        </TouchableOpacity>
+
+        {/* 버튼들 */}
+        <View style={styles.actionsCol}>
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.actionPrimary, styles.stackGap]}
+            onPress={() => handleWear(item)}
+            disabled={wearingId === item.id}
+          >
+            {wearingId === item.id
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={styles.actionPrimaryText}>착용</Text>}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.actionOutline]}
+            onPress={() => navigation.navigate('Coordinate', { seedClothId: item.id })}
+          >
+            <Text style={styles.actionOutlineText}>✔️  코디 제안</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {/* 삭제 확인 모달 */}
+      <Modal visible={deleteModalId === item.id} transparent animationType="fade">
+        <Pressable style={styles.modalBg} onPress={() => setDeleteModalId(null)}>
+          <View style={styles.modalBox}>
+            <Text style={{ fontSize: 16, marginBottom: 14 }}>정말 삭제하시겠습니까?</Text>
+            <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
+              <TouchableOpacity onPress={() => setDeleteModalId(null)} style={styles.modalBtnGray}>
+                <Text style={{ color: "#333", fontSize: 15 }}>아니오</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.modalBtnRed}>
+                <Text style={{ color: "#fff", fontSize: 15 }}>예, 삭제</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* 상세/수정 모달 */}
+      <Modal visible={infoModalId === item.id} transparent animationType="fade">
+        <Pressable style={styles.modalBg} onPress={() => setInfoModalId(null)}>
+          <View style={styles.infoModalBox}>
+            <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8 }}>상세 정보</Text>
+            <Text>이름: {item.cloth_name}</Text>
+            <Text>카테고리: {item.category || '-'}</Text>
+            <Text>보관 위치: {item.location || '-'}</Text>
+
+            <TouchableOpacity
+              style={styles.editBtn}
+              onPress={() => {
+                setInfoModalId(null);
+                navigation.navigate("EditCloth", { clothId: item.id });
+              }}
+            >
+              <Text style={{ color: "#37955F", fontSize: 15, fontWeight: "bold" }}>수정하기</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 
@@ -138,7 +246,7 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
 
-      {/* ------- 상단 바: 좌=Settings / 중앙=Logo / 우=Search ------- */}
+      {/* 상단 바 */}
       <View style={styles.logoRow}>
         <TouchableOpacity onPress={() => navigation.navigate("Settings")} style={styles.iconBtn}>
           <Image source={require("../../assets/icons/settings.png")} style={styles.settingsIcon} />
@@ -167,52 +275,30 @@ export default function HomeScreen() {
             <Text style={styles.sectionTitle}>{userName}의 옷장</Text>
             <Text style={styles.sectionDesc}>총 {clothingCount}개의 아이템이 있습니다.</Text>
           </View>
+
           <View style={[styles.gridAbsoluteBox, { width: gridWidth, height: rowCount * cellSize }]}>
             {[...Array(colCount + 1)].map((_, colIdx) => (
-              <View
-                key={`vline-${colIdx}`}
-                style={{
-                  position: "absolute",
-                  left: colIdx * cellSize,
-                  top: 0,
-                  width: 1,
-                  height: rowCount * cellSize,
-                  backgroundColor: "#6AC892",
-                  zIndex: 1,
-                }}
-              />
+              <View key={`vline-${colIdx}`} style={{
+                position: "absolute", left: colIdx * cellSize, top: 0, width: 1, height: rowCount * cellSize,
+                backgroundColor: "#6AC892", zIndex: 1,
+              }} />
             ))}
             {[...Array(rowCount + 1)].map((_, rowIdx) => (
-              <View
-                key={`hline-${rowIdx}`}
-                style={{
-                  position: "absolute",
-                  top: rowIdx * cellSize,
-                  left: 0,
-                  width: colCount * cellSize,
-                  height: 1,
-                  backgroundColor: "#BBB",
-                  zIndex: 1,
-                }}
-              />
+              <View key={`hline-${rowIdx}`} style={{
+                position: "absolute", top: rowIdx * cellSize, left: 0, width: colCount * cellSize, height: 1,
+                backgroundColor: "#BBB", zIndex: 1,
+              }} />
             ))}
+
             {closetBlocks.map((block, i) => {
-              const { top, left, width, height } = getBlockRect(block);
               if (!block.coords?.length) return null;
+              const { top, left, width, height } = getBlockRect(block);
               return (
                 <View
                   key={`block-${i}-${block.name}`}
                   style={{
-                    position: 'absolute',
-                    top,
-                    left,
-                    width,
-                    height,
-                    backgroundColor: "#52b788",
-                    borderColor: "#286E46",
-                    borderWidth: 2,
-                    borderRadius: 18,
-                    zIndex: 10
+                    position: 'absolute', top, left, width, height,
+                    backgroundColor: "#52b788", borderColor: "#286E46", borderWidth: 2, borderRadius: 18, zIndex: 10
                   }}
                 >
                   <TouchableOpacity
@@ -251,7 +337,7 @@ export default function HomeScreen() {
           <Image source={require("../../assets/icons/camera.png")} style={[styles.tabIcon, styles.homeIcon]} />
         </TouchableOpacity>
 
-        {/* 🔧 FIX: 행거 아이콘 → 상황별 코디 추천으로 이동 */}
+        {/* 상황별 코디 추천 진입 */}
         <TouchableOpacity onPress={() => navigation.navigate("Coordinate", { situationName: "데일리" })}>
           <Image source={require("../../assets/icons/hanger.png")} style={styles.tabIcon} />
         </TouchableOpacity>
@@ -264,30 +350,30 @@ export default function HomeScreen() {
   );
 }
 
+const BG = "#FFFEFA";
+const GREEN = "#6AC892";
+const GREEN_DARK = "#37955F";
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FFFEFA" },
+  container: { flex: 1, backgroundColor: BG },
 
   // 상단 바
   logoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 45,
-    marginBottom: 5,
-    paddingHorizontal: 16,
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    marginTop: 45, marginBottom: 5, paddingHorizontal: 16,
   },
   iconBtn: { padding: 6 },
   settingsIcon: { width: 35, height: 35, resizeMode: "contain" },
   searchIcon: { width: 55, height: 55, resizeMode: "contain" },
-  logo: { width: 126, height: 30, resizeMode: "contain", left:10 },
+  logo: { width: 126, height: 30, resizeMode: "contain", left: 10 },
 
   // 탭
   tabContainer: { flexDirection: "row", justifyContent: "center", marginBottom: 10 },
   tab: { marginHorizontal: 20, fontSize: 16, color: "#777" },
-  activeTab: { color: "#6AC892", fontWeight: "bold", borderBottomWidth: 2, borderColor: "#6AC892" },
+  activeTab: { color: GREEN, fontWeight: "bold", borderBottomWidth: 2, borderColor: GREEN },
 
   scrollContent: { paddingHorizontal: 20 },
-  userBox: { borderWidth: 1, borderColor: "#6AC892", borderRadius: 12, padding: 15, marginBottom: 20 },
+  userBox: { borderWidth: 1, borderColor: GREEN, borderRadius: 12, padding: 15, marginBottom: 20 },
   sectionTitle: { fontSize: 16, color: "#37955F", fontWeight: "bold" },
   sectionDesc: { color: "#555", marginTop: 5 },
 
@@ -296,46 +382,43 @@ const styles = StyleSheet.create({
   gridSubText: { color: "#fff", fontSize: 12, marginTop: 4 },
 
   tabBar: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderColor: "#ddd",
-    backgroundColor: "#FFFEFA",
-    position: "absolute",
-    bottom: 0,
-    width: "100%"
+    flexDirection: "row", justifyContent: "space-around", paddingVertical: 12, borderTopWidth: 1, borderColor: "#ddd",
+    backgroundColor: BG, position: "absolute", bottom: 0, width: "100%"
   },
   tabIcon: { width: 35, height: 35 },
   homeIcon: { width: 40, height: 40 },
 
   // 카드/리스트
   card: {
-    width: '48%',
-    margin: '1%',
-    backgroundColor: '#FFFEFA',
-    borderRadius: 14,
-    overflow: 'hidden',
-    borderWidth: 0,
-    borderColor: 'transparent',
-    elevation: 0,
+    width: '48%', margin: '1%', backgroundColor: BG, borderRadius: 14, overflow: 'hidden',
+    borderWidth: 0, borderColor: 'transparent', elevation: 0,
+    marginBottom: 20, // 간격
   },
-  image: {
-    width: '100%',
-    aspectRatio: 1,
-    backgroundColor: '#F3F3F3',
-    borderRadius: 12,
-  },
-  infoBox: { padding: 10, minHeight: 94, justifyContent: "space-between" },
+  image: { width: '100%', aspectRatio: 1, backgroundColor: '#F3F3F3', borderRadius: 12 },
+
+  // 인포/삭제
+  infoIconBox: { position: "absolute", top: 8, right: 8, zIndex: 2 },
+  infoIcon: { width: 22, height: 22, tintColor: "#222" },
+  deleteIcon: { width: 20, height: 20, marginLeft: 8, tintColor: "#222" },
+
+  infoBox: { padding: 10, minHeight: 110, justifyContent: "space-between" },
   name: { fontWeight: "bold", fontSize: 14, color: "#222", marginBottom: 1 },
   category: { color: "#666", fontWeight: "bold", fontSize: 13 },
-  coordiBtn: {
-    marginTop: 10,
-    backgroundColor: "#6AC892",
-    borderRadius: 8,
-    paddingVertical: 8,
-    alignItems: "center",
-  },
-  coordiText: { color: "#fff", fontWeight: "bold", fontSize: 13 },
-  meta: { fontSize: 12, color: "#666", marginTop: 0, marginBottom: 0 },
+
+  // 버튼 스택
+  actionsCol: { marginTop: 10 },
+  actionBtn: { height: 35, borderRadius: 8, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  stackGap: { marginBottom: 6 },
+  actionPrimary: { backgroundColor: GREEN, borderColor: GREEN },
+  actionPrimaryText: { color: "#fff", fontWeight: "bold", fontSize: 13 },
+  actionOutline: { backgroundColor: BG, borderColor: GREEN },
+  actionOutlineText: { color: GREEN_DARK, fontWeight: "bold", fontSize: 13 },
+
+  // 모달
+  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.25)', justifyContent: 'center', alignItems: 'center' },
+  modalBox: { backgroundColor: '#fff', borderRadius: 12, padding: 24, width: 260, shadowColor: '#000', shadowOpacity: 0.11, shadowRadius: 16, elevation: 7 },
+  modalBtnGray: { paddingVertical: 8, paddingHorizontal: 18, backgroundColor: "#eee", borderRadius: 8, marginRight: 10 },
+  modalBtnRed: { paddingVertical: 8, paddingHorizontal: 18, backgroundColor: "#D74B4B", borderRadius: 8 },
+  infoModalBox: { backgroundColor: '#fff', borderRadius: 12, padding: 28, width: 270, alignItems: 'flex-start', shadowColor: '#000', shadowOpacity: 0.11, shadowRadius: 16, elevation: 8 },
+  editBtn: { marginTop: 16, backgroundColor: "#F5FFFA", borderRadius: 8, paddingHorizontal: 22, paddingVertical: 8, alignSelf: 'stretch', alignItems: 'center', borderWidth: 1, borderColor: GREEN_DARK },
 });
