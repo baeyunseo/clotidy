@@ -1,4 +1,4 @@
-// scr/screens/HomeScreen
+// src/screens/HomeScreen.tsx
 // 홈 화면
 
 import React, { useState, useCallback } from "react";
@@ -114,7 +114,7 @@ export default function HomeScreen() {
     return `${BASE_URL}/${url.replace(/^\//, '')}`;
   };
 
-  // 리스트カード
+  // 리스트카드
   const renderItem = ({ item }: { item: ClothItem }) => (
     <View style={styles.card}>
       <Image source={{ uri: getImageUrl(item.image_url) }} style={styles.image} />
@@ -126,7 +126,7 @@ export default function HomeScreen() {
         </Text>
         <TouchableOpacity
           style={styles.coordiBtn}
-          onPress={() => navigation.navigate('Coordinate')}
+          onPress={() => navigation.navigate('Coordinate')} // 그대로 두되, 필요 시 seedClothId 넘겨도 됨
         >
           <Text style={styles.coordiText}>✔️  코디 제안</Text>
         </TouchableOpacity>
@@ -138,7 +138,7 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
 
-      {/* ------- 上部バー：左=Settings / 中央=Logo / 右=Search ------- */}
+      {/* ------- 상단 바: 좌=Settings / 중앙=Logo / 우=Search ------- */}
       <View style={styles.logoRow}>
         <TouchableOpacity onPress={() => navigation.navigate("Settings")} style={styles.iconBtn}>
           <Image source={require("../../assets/icons/settings.png")} style={styles.settingsIcon} />
@@ -151,7 +151,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* タブ切替 */}
+      {/* 탭 전환 */}
       <View style={styles.tabContainer}>
         <TouchableOpacity onPress={() => setActiveTab("closet")}>
           <Text style={[styles.tab, activeTab === "closet" && styles.activeTab]}>옷장</Text>
@@ -237,28 +237,28 @@ export default function HomeScreen() {
         />
       )}
 
-      {/* 下部タブバー */}
+      {/* 하단 탭바 */}
       <View style={styles.tabBar}>
         <TouchableOpacity onPress={() => navigation.navigate("Home")}>
-  　　   <Image source={require("../../assets/icons/home.png")} 
-          style={[styles.tabIcon, styles.homeIcon]} />
-    　　　</TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate("Alarm")}>
-          <Image source={require("../../assets/icons/bell.png")}
-           style={[styles.tabIcon, styles.homeIcon]} />
-          </TouchableOpacity>
-                  
-        　 <TouchableOpacity onPress={() => navigation.navigate({ name: 'RegisterCloth', params: { imageUri: "" } })}>
-          　<Image source={require("../../assets/icons/camera.png")} 
-          style={[styles.tabIcon, styles.homeIcon]} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate("Settings")}>
-            <Image source={require("../../assets/icons/hanger.png")} style={styles.tabIcon} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate("Calendar")}>
-            <Image source={require("../../assets/icons/daily.png")} style={styles.tabIcon} />
-            </TouchableOpacity>
-            
+          <Image source={require("../../assets/icons/home.png")} style={[styles.tabIcon, styles.homeIcon]} />
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => navigation.navigate("Alarm")}>
+          <Image source={require("../../assets/icons/bell.png")} style={[styles.tabIcon, styles.homeIcon]} />
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => navigation.navigate({ name: 'RegisterCloth', params: { imageUri: "" } })}>
+          <Image source={require("../../assets/icons/camera.png")} style={[styles.tabIcon, styles.homeIcon]} />
+        </TouchableOpacity>
+
+        {/* 🔧 FIX: 행거 아이콘 → 상황별 코디 추천으로 이동 */}
+        <TouchableOpacity onPress={() => navigation.navigate("Coordinate", { situationName: "데일리" })}>
+          <Image source={require("../../assets/icons/hanger.png")} style={styles.tabIcon} />
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => navigation.navigate("Calendar")}>
+          <Image source={require("../../assets/icons/daily.png")} style={styles.tabIcon} />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -267,11 +267,11 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FFFEFA" },
 
-  // 上部バー
+  // 상단 바
   logoRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between", // 左=設定 / 中央=ロゴ / 右=検索
+    justifyContent: "space-between",
     marginTop: 45,
     marginBottom: 5,
     paddingHorizontal: 16,
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
   searchIcon: { width: 55, height: 55, resizeMode: "contain" },
   logo: { width: 126, height: 30, resizeMode: "contain", left:10 },
 
-  // タブ
+  // 탭
   tabContainer: { flexDirection: "row", justifyContent: "center", marginBottom: 10 },
   tab: { marginHorizontal: 20, fontSize: 16, color: "#777" },
   activeTab: { color: "#6AC892", fontWeight: "bold", borderBottomWidth: 2, borderColor: "#6AC892" },
@@ -309,8 +309,7 @@ const styles = StyleSheet.create({
   tabIcon: { width: 35, height: 35 },
   homeIcon: { width: 40, height: 40 },
 
-
-  // カード/リスト
+  // 카드/리스트
   card: {
     width: '48%',
     margin: '1%',
