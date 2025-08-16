@@ -16,7 +16,7 @@ const BASE_URL = 'http://54.79.167.144:5000';
 const MODES = ['situation', 'item'] as const;
 type Mode = typeof MODES[number];
 
-// ✅ 상황 프리셋 변경
+// ✅ 상황 프리셋
 const SITUATIONS = ['데이트', '학교', '격식', '여행', '소개팅', '출근'] as const;
 type Situation = typeof SITUATIONS[number];
 
@@ -81,11 +81,12 @@ export default function CoordiRecommendationScreen() {
     if (!uid) throw new Error('로그인이 필요합니다.');
 
     const url = `${BASE_URL}/api/situation/${encodeURIComponent(situation)}?user_id=${encodeURIComponent(uid)}`;
-    console.log('[Coordinate] GET', url);
+    console.log('[Coordinate] GET (situation)', url);
     const res = await axios.get(url, { timeout: 12000 });
 
     const root = (res.data?.data ?? res.data) || {};
     setRawPayload(root);
+    console.log('[Coordinate] payload keys:', Object.keys(root || {}));
 
     setWeather(root.weather || root.meta?.weather || null);
 
@@ -99,7 +100,8 @@ export default function CoordiRecommendationScreen() {
   };
 
   /* ========= 아이템 기반 호출 =========
-     1) /api/get-cloth/:id 존재 + 소유권(user_id === uid) 확인
+     1) /api/get-cloth/:id 존재 + (참고용) 소유권(user_id === uid) 확인
+        - 실패해도 recommend는 시도 (최종 권한검사는 서버가 수행)
      2) /api/recommend/:id?user_id=uid 호출
   */
   const fetchByItem = async () => {
@@ -107,39 +109,54 @@ export default function CoordiRecommendationScreen() {
     const uid = auth().currentUser?.uid;
     if (!uid) throw new Error('로그인이 필요합니다.');
 
-    // 1) 존재/소유권
+    // 1) 존재/소유권 조회 (실패해도 recommend는 시도)
+    let clothForAnchor: any = null;
     try {
       const checkUrl = `${BASE_URL}/api/get-cloth/${encodeURIComponent(seedClothId)}`;
-      console.log('[Coordinate] GET', checkUrl);
+      console.log('[Coordinate] GET (check)', checkUrl);
       const check = await axios.get(checkUrl, { timeout: 8000 });
-      const cloth = check.data || {};
+      const cloth = (check.data?.data ?? check.data) || {};
+      clothForAnchor = cloth;
 
-      // 기준 아이템 먼저 고정 노출
-      setAnchor(normalizeItem(cloth));
+      // 기준 아이템 먼저 고정 노출 (anchor 세팅 오류가 전체 흐름 막지 않게 try)
+      try {
+        setAnchor(normalizeItem(cloth));
+      } catch (e) {
+        console.warn('[Coordinate] normalizeItem(anchor) failed:', (e as any)?.message);
+      }
 
-      if (cloth.user_id && cloth.user_id !== uid) {
-        throw new Error('이 아이템은 현재 로그인한 사용자 소유가 아닙니다. (권한 오류)');
+      // 소유권 불일치해도 서버에서 최종 검증하므로 여기서 막지 않음
+      if (cloth.user_id && String(cloth.user_id) !== String(uid)) {
+        console.warn('[Coordinate] ownership mismatch (client-side). Proceeding to server-validated recommend.');
       }
     } catch (e: any) {
       const st = e?.response?.status;
-      if (st === 404) throw new Error('해당 옷을 찾을 수 없습니다. (404)');
-      if (st === 403) throw new Error('이 아이템에 대한 권한이 없습니다. (403)');
-      throw e;
+      console.warn('[Coordinate] check failed:', st, e?.message);
+      // 404/403이어도 recommend를 시도해서 서버 메시지를 사용자에게 보여주자
     }
 
-    // 2) 추천 호출
+    // 2) 추천 호출 (항상 시도)
     const url = `${BASE_URL}/api/recommend/${encodeURIComponent(seedClothId)}?user_id=${encodeURIComponent(uid)}`;
-    console.log('[Coordinate] GET', url);
+    console.log('[Coordinate] GET (recommend) →', url);
     const res = await axios.get(url, { timeout: 15000 });
 
     const root = (res.data?.data ?? res.data) || {};
     setRawPayload(root);
+    console.log('[Coordinate] payload keys:', Object.keys(root || {}));
 
     setWeather(root.weather || root.meta?.weather || null);
 
-    // 서버가 anchor를 다시 주면 갱신, 아니면 기존 anchor 유지
+    // 서버가 anchor를 내려주면 갱신, 없으면 기존 anchor 유지 (없고 anchor도 없으면 check 결과로 보완)
     const maybeAnchor = getAnchor(root);
-    if (maybeAnchor) setAnchor(maybeAnchor);
+    if (maybeAnchor) {
+      setAnchor(maybeAnchor);
+    } else if (!anchor && clothForAnchor) {
+      try {
+        setAnchor(normalizeItem(clothForAnchor));
+      } catch (e) {
+        console.warn('[Coordinate] fallback anchor normalize failed:', (e as any)?.message);
+      }
+    }
 
     const list = normalizeRecommendations(root);
     setOutfits(list);
@@ -261,7 +278,7 @@ export default function CoordiRecommendationScreen() {
         </>
       )}
 
-      {/* 디버그: 서버 원본 확인 토글 */}
+      {/* 디버그: 서버 원본 + 이미지 갤러리 */}
       {!loading && (
         <View style={{ marginTop: 10 }}>
           <TouchableOpacity onPress={() => setShowDebug(v => !v)}>
@@ -271,9 +288,10 @@ export default function CoordiRecommendationScreen() {
           </TouchableOpacity>
           {showDebug && rawPayload && (
             <View style={styles.debugBox}>
-              <Text style={styles.debugText}>
-                {safeStringify(rawPayload)}
-              </Text>
+              {/* JSON 원문 */}
+              <Text style={styles.debugText}>{safeStringify(rawPayload)}</Text>
+              {/* 이미지 갤러리 */}
+              <DebugImagesGallery items={collectAllItemsForPreview(rawPayload)} />
             </View>
           )}
         </View>
@@ -303,6 +321,33 @@ function ItemCard({ item }: { item: Item }) {
   );
 }
 
+/* ===================== 디버그 갤러리 ===================== */
+function DebugImagesGallery({ items }: { items: Item[] }) {
+  if (!items?.length) return null;
+  return (
+    <>
+      <Text style={{ marginTop: 10, marginBottom: 6, color: '#666', fontWeight: '600' }}>디버그 이미지 미리보기</Text>
+      <View style={styles.debugGrid}>
+        {items.map((it, i) => {
+          const uri = toAbs(it.image_url);
+          return (
+            <View key={`${it.id || it.cloth_id || i}-${i}`} style={styles.debugCell}>
+              {uri ? (
+                <Image source={{ uri }} style={styles.debugImg} />
+              ) : (
+                <View style={[styles.debugImg, { justifyContent: 'center', alignItems: 'center' }]}>
+                  <Text style={{ color: '#aaa', fontSize: 10 }}>이미지 없음</Text>
+                </View>
+              )}
+              <Text numberOfLines={1} style={styles.debugCaption}>{it.cloth_name || it.name || '아이템'}</Text>
+            </View>
+          );
+        })}
+      </View>
+    </>
+  );
+}
+
 /* ===================== 유틸/노멀라이저 ===================== */
 
 function toAbs(u?: string) {
@@ -312,7 +357,7 @@ function toAbs(u?: string) {
 }
 
 function getAnchor(json: any): Item | null {
-  const raw = json?.anchor || json?.seed || json?.base || json?.selected || null;
+  const raw = json?.anchor || json?.seed || json?.base || json?.selected || json?.main || null;
   if (!raw) return null;
   return normalizeItem(raw);
 }
@@ -337,47 +382,111 @@ function asReason(...vals: any[]): string | undefined {
   return undefined;
 }
 
-/** 매우 관대한 추출기: 서버 응답 구조가 달라도 코디를 뽑아낸다 (TS 타입가드 포함) */
+/** 초관대한 추출기: 배열/객체/슬롯/중첩 + main/matched_items까지 커버 */
 function extractOutfits(json: any): Outfit[] {
   if (!json) return [];
 
+  const buildFromMain = (node: any): Outfit | null => {
+    if (!node || typeof node !== 'object') return null;
+    const main = node.main || node.anchor || node.seed || node.base || node.selected;
+    const mates = node.matched_items || node.matches || node.candidates || node.recommendations_list;
+    const reason = asReason(node.reason, node.note, node.explain, node.description);
+    const score  = asNumber(node.score ?? node.rank ?? node.similarity);
+
+    const items: Item[] = [
+      ...normalizeItemsArray([main]),
+      ...normalizeItemsArray(Array.isArray(mates) ? mates : [mates]),
+    ];
+    return items.length ? { items, reason, score } : null;
+  };
+
+  // 1) 후보 배열
   const candidateArrays: any[] | undefined =
     json.recommendations || json.outfits || json.combos || json.combinations ||
     json.sets || json.suggestions || json.coordis || json.coordinates ||
     json.looks || json.results || json.items_sets;
 
   if (Array.isArray(candidateArrays)) {
-    const mapped = candidateArrays.map((entry: any): Outfit | null => {
+    const list = candidateArrays.map((entry: any): Outfit | null => {
+      // 표준 items 계열
       const items = normalizeItemsArray(
-        entry.items ?? entry.list ?? entry.parts ?? entry.elements ?? entry.look ?? entry.set
+        entry?.items ?? entry?.list ?? entry?.parts ?? entry?.elements ?? entry?.look ?? entry?.set
       );
-      const reason = asReason(entry.reason, entry.note, entry.expl, entry.explain, entry.description);
-      const score = asNumber(entry.score ?? entry.similarity ?? entry.rank);
+      const reason = asReason(entry?.reason, entry?.note, entry?.expl, entry?.explain, entry?.description);
+      const score  = asNumber(entry?.score ?? entry?.similarity ?? entry?.rank);
       if (items.length > 0) return { items, score, reason };
 
+      // main + matched_items
+      const asMain = buildFromMain(entry);
+      if (asMain) return asMain;
+
+      // 슬롯 평탄화
       const flat = flattenSlots(entry);
       if (flat.length > 0) return { items: flat, score, reason };
 
       return null;
-    });
+    }).filter((x): x is Outfit => !!x);
 
-    const list: Outfit[] = mapped.filter((x): x is Outfit => x !== null);
     if (list.length) return list;
   }
 
-  const flatRoot = flattenSlots(json);
-  if (flatRoot.length) return [{ items: flatRoot }];
+  // 2) 루트가 main + matched_items
+  const fromRootMain = buildFromMain(json);
+  if (fromRootMain) return [fromRootMain];
 
-  if (Array.isArray(json.list) || Array.isArray(json.parts) || Array.isArray(json.elements)) {
-    const items = normalizeItemsArray(json.list ?? json.parts ?? json.elements);
-    if (items.length) return [{ items }];
+  // 3) 객체 트리(깊이 2) 수집
+  const candidatesObj =
+    json.recommendations || json.result || json.results || json.data || json.payload || json.response;
+
+  const collected: Item[] = [];
+  collected.push(...flattenSlots(json));
+
+  if (candidatesObj && typeof candidatesObj === 'object') {
+    const directMain = buildFromMain(candidatesObj);
+    if (directMain) return [directMain];
+
+    collected.push(...flattenSlots(candidatesObj));
+    const arr = normalizeItemsArray(
+      (candidatesObj as any).items ?? (candidatesObj as any).list ??
+      (candidatesObj as any).parts ?? (candidatesObj as any).elements ??
+      (candidatesObj as any).look ?? (candidatesObj as any).set
+    );
+    if (arr.length) collected.push(...arr);
+
+    // 깊이 2에서 main 패턴 우선 탐색 (여러 개면 여러 outfit)
+    const outfits: Outfit[] = [];
+    for (const k of Object.keys(candidatesObj)) {
+      const v = (candidatesObj as any)[k];
+      if (!v || typeof v !== 'object') continue;
+      const maybe = buildFromMain(v);
+      if (maybe) outfits.push(maybe);
+    }
+    if (outfits.length) return outfits;
+
+    // 깊이 2에서 슬롯/표준 items 수집
+    for (const k of Object.keys(candidatesObj)) {
+      const v = (candidatesObj as any)[k];
+      if (!v || typeof v !== 'object') continue;
+
+      if (Array.isArray(v)) {
+        const asItems = normalizeItemsArray(v);
+        if (asItems.length) collected.push(...asItems);
+      } else {
+        collected.push(...flattenSlots(v));
+        const nestedItems = normalizeItemsArray(
+          v.items ?? v.list ?? v.parts ?? v.elements ?? v.look ?? v.set
+        );
+        if (nestedItems.length) collected.push(...nestedItems);
+      }
+    }
   }
 
-  if (Array.isArray(json.items)) {
-    const items = normalizeItemsArray(json.items);
-    if (items.length) return [{ items }];
+  // 4) 루트 직속 items/list/elements
+  if (Array.isArray(json.items) || Array.isArray(json.list) || Array.isArray(json.elements)) {
+    collected.push(...normalizeItemsArray(json.items ?? json.list ?? json.elements));
   }
 
+  if (collected.length) return [{ items: collected }];
   return [];
 }
 
@@ -417,7 +526,9 @@ function flattenSlots(obj: any): Item[] {
   if (!obj || typeof obj !== 'object') return [];
   const slots = [
     'tops', 'bottoms', 'outerwear', 'shoes', 'bags', 'accessories', 'hats', 'jewellery',
-    'top', 'bottom', 'dress', 'onepiece'
+    'top', 'bottom', 'dress', 'onepiece',
+    // 디버그 구조 수집용
+    'matched_items', 'matches', 'candidates'
   ];
   const picked: Item[] = [];
   for (const key of slots) {
@@ -427,6 +538,17 @@ function flattenSlots(obj: any): Item[] {
     else picked.push(...normalizeItemsArray([v]));
   }
   return picked;
+}
+
+function collectAllItemsForPreview(json: any): Item[] {
+  if (!json) return [];
+  const fromMain = [
+    ...(normalizeItemsArray([json.main || json.anchor || json.seed || json.base || json.selected])),
+    ...(normalizeItemsArray(json.matched_items ?? json.matches ?? json.candidates ?? [])),
+  ];
+  const flatRoot = flattenSlots(json);
+  const direct = normalizeItemsArray(json.items ?? json.list ?? json.elements ?? []);
+  return [...fromMain, ...flatRoot, ...direct];
 }
 
 function renderWeather(w: any) {
@@ -524,4 +646,10 @@ const styles = StyleSheet.create({
   // 디버그 박스
   debugBox: { marginTop: 8, backgroundColor: '#fff', borderRadius: 8, padding: 10, borderWidth: 1, borderColor: '#eee' },
   debugText: { fontSize: 12, color: '#666' },
+
+  // 디버그 갤러리
+  debugGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 },
+  debugCell: { width: '25%', padding: 4 },
+  debugImg: { width: '100%', aspectRatio: 1, borderRadius: 6, backgroundColor: '#f3f3f3' },
+  debugCaption: { fontSize: 10, color: '#666', marginTop: 2 },
 });
