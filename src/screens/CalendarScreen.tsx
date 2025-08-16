@@ -1,4 +1,3 @@
-// src/screens/CalendarRecordScreen.tsx
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, Image, TouchableOpacity,
@@ -8,6 +7,9 @@ import { Calendar, DateObject } from 'react-native-calendars';
 import { Picker } from '@react-native-picker/picker';
 import auth from '@react-native-firebase/auth';
 import axios from 'axios';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../navigation/types';
 
 /* ---------- Types ---------- */
 type Cloth = {
@@ -17,7 +19,7 @@ type Cloth = {
   category: string;
   locationLabel: string;
   lastWorn?: string;   // YYYY-MM-DD
-  wearCount?: number;  // 任意
+  wearCount?: number;
 };
 type WearRecord = {
   id: string;
@@ -26,16 +28,11 @@ type WearRecord = {
   memo?: string;
 };
 
-/* ---------- API: サーバ部分だけ書き直し ---------- */
+/* ---------- API ---------- */
 const BASE_URL = 'http://54.79.167.144:5000';
 const ENDPOINTS = {
-  // 服一覧取得
-  getClothes: (uid: string) => `${BASE_URL}/api/get-clothes/${uid}`,
-  // 月次の着用記録（あれば使う。404ならフォールバック）
-  getWearRecords: (uid: string, start: string, end: string) =>
-    `${BASE_URL}/api/wear-records/${uid}?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`,
-  // 着用登録：回数+最終着用を更新
-  increaseWornCount: (clothId: string) => `${BASE_URL}/api/increase-worn-count/${clothId}`,
+  getClothes: (uid: string) => `${BASE_URL}/api/get-clothes/${encodeURIComponent(uid)}`,
+  setLastWorn: (clothId: string) => `${BASE_URL}/api/last-worn/${encodeURIComponent(clothId)}`, // PATCH
 };
 async function authHeaders() {
   const token = await auth().currentUser?.getIdToken();
@@ -49,39 +46,38 @@ const LINE = '#E9E6E1';
 const MUTE = '#A7A7A7';
 const ACCENT = '#36A58A';
 
-const toISO = (d: Date) => d.toISOString().slice(0, 10);
-const monthRange = (iso: string) => {
-  const [y, m] = iso.split('-').map(n => parseInt(n, 10));
-  const first = new Date(y, m - 1, 1);
-  const last = new Date(y, m, 0);
-  return { start: toISO(first), end: toISO(last) };
-};
+const toISODate = (d: Date) => d.toISOString().slice(0, 10);
+/** 'YYYY-MM-DD' -> 'YYYY-MM-DDT00:00:00.000Z' */
+const toStartOfDayZ = (ymd: string) => `${ymd}T00:00:00.000Z`;
 
 export default function CalendarRecordScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
   /* ---------- Auth ---------- */
   const [uid, setUid] = useState<string | null>(null);
   useEffect(() => auth().onAuthStateChanged(u => setUid(u?.uid ?? null)), []);
 
   /* ---------- State ---------- */
-  const [selected, setSelected] = useState<string>(toISO(new Date()));
+  const [selected, setSelected] = useState<string>(toISODate(new Date()));
   const [loading, setLoading] = useState(true);
 
   const [clothes, setClothes] = useState<Record<string, Cloth>>({});
+  // 表示用：日付 -> 着用アイテム（get-clothes の last_worn から合成）
   const [recordsByDate, setRecordsByDate] = useState<Record<string, WearRecord[]>>({});
 
   const [open, setOpen] = useState(false);
-  // ★頻度は削除：clothId + memo のみ
   const [form, setForm] = useState<{ clothId: string; memo: string }>({ clothId: '', memo: '' });
 
   const [selLocation, setSelLocation] = useState<string>(''); // ''=전체
   const [selCategory, setSelCategory] = useState<string>(''); // ''=전체
 
-  /* ---------- Fetch: Clothes (GET /api/get-clothes/:uid) ---------- */
+  /* ---------- Fetch: Clothes ---------- */
   useEffect(() => {
     if (!uid) return;
     let cancelled = false;
     (async () => {
       try {
+        setLoading(true);
         const headers = await authHeaders();
         const res = await axios.get(ENDPOINTS.getClothes(uid), { headers });
         const map: Record<string, Cloth> = {};
@@ -92,7 +88,9 @@ export default function CalendarRecordScreen() {
             thumbnail: d.thumbnail ?? d.image_url ?? '',
             category: String(d.category ?? '').trim(),
             locationLabel: String(d.location ?? d.locationLabel ?? '').trim(),
-            lastWorn: typeof d.last_worn === 'string' ? d.last_worn : d.lastWorn,
+            lastWorn: typeof d.last_worn === 'string'
+              ? d.last_worn.slice(0, 10)                     // ISO -> YYYY-MM-DD
+              : (typeof d.lastWorn === 'string' ? d.lastWorn.slice(0, 10) : undefined),
             wearCount: Number(d.wear_count ?? d.wearCount ?? 0),
           };
           map[item.id] = item;
@@ -101,55 +99,26 @@ export default function CalendarRecordScreen() {
       } catch (e:any) {
         console.error('❌ getClothes error:', e?.response?.status, e?.message);
         if (!cancelled) setClothes({});
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [uid]);
-
-  /* ---------- Fetch: Monthly records (GET /api/wear-records …) ---------- */
-  useEffect(() => {
-    if (!uid) return;
-    let cancelled = false;
-    const { start, end } = monthRange(selected);
-    setLoading(true);
-    (async () => {
-      try {
-        const headers = await authHeaders();
-        const res = await axios.get(ENDPOINTS.getWearRecords(uid, start, end), { headers });
-        const byDate: Record<string, WearRecord[]> = {};
-        (res.data || []).forEach((d: any) => {
-          const wr: WearRecord = {
-            id: String(d.id),
-            date: d.date,
-            clothId: String(d.clothId ?? d.cloth_id),
-            memo: d.memo ?? '',
-          };
-          byDate[wr.date] = [...(byDate[wr.date] ?? []), wr];
-        });
-        if (!cancelled) setRecordsByDate(byDate);
-      } catch (e:any) {
-        // ★ 404ならフォールバック：clothes.lastWorn から構築
-        if (e?.response?.status === 404) {
-          const byDate: Record<string, WearRecord[]> = {};
-          Object.values(clothes).forEach(c => {
-            if (c.lastWorn) {
-              byDate[c.lastWorn] = [
-                ...(byDate[c.lastWorn] ?? []),
-                { id: `${c.id}-${c.lastWorn}`, date: c.lastWorn, clothId: c.id, memo: '' }
-              ];
-            }
-          });
-          if (!cancelled) setRecordsByDate(byDate);
-        } else {
-          console.error('❌ getWearRecords error:', e?.response?.status, e?.message);
-          if (!cancelled) setRecordsByDate({});
-        }
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [uid, selected, clothes]);
+  }, [uid]);
+
+  /* ---------- Build calendar marks from clothes.lastWorn ---------- */
+  useEffect(() => {
+    const byDate: Record<string, WearRecord[]> = {};
+    Object.values(clothes).forEach(c => {
+      if (c.lastWorn) {
+        byDate[c.lastWorn] = [
+          ...(byDate[c.lastWorn] ?? []),
+          { id: `${c.id}-${c.lastWorn}`, date: c.lastWorn, clothId: c.id, memo: '' }
+        ];
+      }
+    });
+    setRecordsByDate(byDate);
+  }, [clothes]);
 
   /* ---------- Calendar marks ---------- */
   const marked = useMemo(() => {
@@ -179,22 +148,31 @@ export default function CalendarRecordScreen() {
   }, [clothes, selLocation, selCategory]);
   const clothesLoaded = Object.keys(clothes).length > 0;
 
-  /* ---------- 空状態の文言制御 ---------- */
+  /* ---------- Empty ---------- */
   const hasAnyRecords = useMemo(
     () => Object.values(recordsByDate).some(list => (list?.length ?? 0) > 0),
     [recordsByDate]
   );
 
-  /* ---------- Register (POST /api/increase-worn-count/:clothId) ---------- */
+  /* ---------- Register via PATCH /api/last-worn/:clothId ---------- */
   const onConfirmAdd = async () => {
     if (!uid) return Alert.alert('오류', '로그인이 필요합니다.');
     if (!form.clothId) return Alert.alert('안내', '아이템을 선택해 주세요.');
+
     try {
-      const headers = await authHeaders();
-      // date と memo は任意でBodyへ
-      await axios.post(
-        ENDPOINTS.increaseWornCount(form.clothId),
-        { date: selected, memo: form.memo ?? '' },
+      const headersBase = await authHeaders();
+      const headers = { 'Content-Type': 'application/json', ...(headersBase || {}) };
+
+      const url = ENDPOINTS.setLastWorn(String(form.clothId));
+      console.log('PATCH URL:', url, 'clothId:', form.clothId, 'date:', selected);
+
+      await axios.patch(
+        url,
+        {
+          last_worn: toStartOfDayZ(selected), // 例: 2025-08-10T00:00:00.000Z
+          alsoIncrement: true,                // カウントも増やす
+          memo: form.memo ?? ''
+        },
         { headers }
       );
 
@@ -202,22 +180,29 @@ export default function CalendarRecordScreen() {
       setOpen(false);
       setForm({ clothId: '', memo: '' });
 
-      // 楽観更新：服の最終着用日/着用回数 & 当日のリスト
+      // 楽観更新（clothes・recordsByDate 双方を更新）
       setClothes(prev => {
         const cur = prev[form.clothId];
         if (!cur) return prev;
-        return { ...prev, [form.clothId]: { ...cur, lastWorn: selected, wearCount: (cur.wearCount ?? 0) + 1 } };
+        return {
+          ...prev,
+          [form.clothId]: {
+            ...cur,
+            lastWorn: selected,
+            wearCount: (cur.wearCount ?? 0) + 1
+          }
+        };
       });
       setRecordsByDate(prev => {
         const next = { ...prev };
         next[selected] = [
           ...(next[selected] ?? []),
-          { id: `${form.clothId}-${selected}`, date: selected, clothId: form.clothId, memo: '' }
+          { id: `${form.clothId}-${selected}`, date: selected, clothId: form.clothId, memo: form.memo ?? '' }
         ];
         return next;
       });
     } catch (e:any) {
-      console.error('❌ increaseWornCount error:', e?.response?.status, e?.message, e?.response?.data);
+      console.error('❌ setLastWorn error:', e?.response?.status, e?.message, e?.response?.data);
       Alert.alert('오류', '기록 추가에 실패했습니다.');
     }
   };
@@ -225,7 +210,11 @@ export default function CalendarRecordScreen() {
   /* ---------- UI ---------- */
   return (
     <View style={styles.container}>
+      {/* ヘッダー：タイトル中央、戻る左上（Bパターン） */}
       <View style={styles.headerSpacer}>
+        <TouchableOpacity style={styles.backButtonAbsolute} onPress={() => navigation.goBack()}>
+          <Text style={styles.backArrow}>{'<'}</Text>
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>기록</Text>
       </View>
 
@@ -287,7 +276,7 @@ export default function CalendarRecordScreen() {
         />
       )}
 
-      {/* 追加モーダル（頻度欄は削除済み） */}
+      {/* 追加モーダル */}
       <Modal transparent animationType="fade" visible={open} onRequestClose={() => setOpen(false)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
@@ -341,7 +330,7 @@ export default function CalendarRecordScreen() {
                     <Picker.Item
                       key={c.id}
                       label={`${c.name} (${c.locationLabel})${typeof c.wearCount === 'number' ? ` · ${c.wearCount}회` : ''}`}
-                      value={c.id}
+                      value={String(c.id)}
                     />
                   ))}
                 </Picker>
@@ -379,14 +368,33 @@ export default function CalendarRecordScreen() {
 /* ---------- Styles ---------- */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: IVORY },
-  headerSpacer: { paddingTop: 60, paddingBottom: 8, alignItems: 'center' },
+
+  // タイトル中央 & 戻るボタンは左上に絶対配置（Bパターン）
+  headerSpacer: {
+    paddingTop: 60,
+    paddingBottom: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backButtonAbsolute: {
+    position: 'absolute',
+    left: 16,
+    top: 60,
+    zIndex: 1,
+  },
+  backArrow: { fontSize: 24, color: '#333' },
   headerTitle: { fontSize: 18, fontWeight: '700', color: TEXT },
+
   calendarWrap: { backgroundColor: IVORY, paddingHorizontal: 12, paddingBottom: 4 },
 
   listHeader: {
-    paddingHorizontal: 16, paddingVertical: 8,
-    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: LINE,
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: LINE,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   listHeaderText: { color: TEXT, fontWeight: '600' },
   addText: { color: '#2C7BE5', fontWeight: '700' },
