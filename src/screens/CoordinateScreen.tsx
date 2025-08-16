@@ -70,7 +70,8 @@ export default function CoordiRecommendationScreen() {
   const fetchBySituation = async () => {
     const uid = auth().currentUser?.uid;
     if (!uid) throw new Error('로그인이 필요합니다.');
-    const url = `${BASE_URL}/situation/${encodeURIComponent(situation)}?user_id=${encodeURIComponent(uid)}`;
+    // 🔧 FIX: /api 프리픽스 추가
+    const url = `${BASE_URL}/api/situation/${encodeURIComponent(situation)}?user_id=${encodeURIComponent(uid)}`;
     const res = await axios.get(url, { timeout: 10000 });
     const data = res.data || {};
     setWeather(data.weather || data.meta?.weather || null);
@@ -82,7 +83,9 @@ export default function CoordiRecommendationScreen() {
   const fetchByItem = async () => {
     if (!seedClothId) throw new Error('아이템 기반 추천은 옷 카드에서 진입해주세요.');
     const uid = auth().currentUser?.uid;
-    const url = `${BASE_URL}/recommend/${encodeURIComponent(seedClothId)}${uid ? `?user_id=${encodeURIComponent(uid)}` : ''}`;
+    if (!uid) throw new Error('로그인이 필요합니다.');
+    // 🔧 FIX: /api 프리픽스 추가
+    const url = `${BASE_URL}/api/recommend/${encodeURIComponent(seedClothId)}?user_id=${encodeURIComponent(uid)}`;
     const res = await axios.get(url, { timeout: 10000 });
     const data = res.data || {};
     setWeather(data.weather || data.meta?.weather || null);
@@ -165,7 +168,7 @@ export default function CoordiRecommendationScreen() {
       )}
       {!loading && errorMsg && <Text style={styles.errorText}>오류: {errorMsg}</Text>}
 
-      {/* [수정] 섹션 타이틀 + ItemCard 구현 */}
+      {/* 기준 아이템 */}
       {!loading && !errorMsg && anchor && (
         <>
           <Text style={styles.section}>기준 아이템</Text>
@@ -212,7 +215,7 @@ export default function CoordiRecommendationScreen() {
   );
 }
 
-/* ===================== [수정] ItemCard 컴포넌트 ===================== */
+/* ===================== ItemCard ===================== */
 function ItemCard({ item }: { item: Item }) {
   const uri = toAbs(item.image_url);
   return (
@@ -366,10 +369,8 @@ const styles = StyleSheet.create({
   weatherBox: { backgroundColor: '#F5FFFA', borderWidth: 1, borderColor: '#E0F0E8', padding: 10, borderRadius: 10, marginTop: 6, marginBottom: 10 },
   weatherLine: { color: '#2b5', fontWeight: '600' },
 
-  // [수정] 섹션 타이틀 추가
   section: { fontSize: 16, fontWeight: '700', color: '#286E46', marginTop: 12, marginBottom: 8 },
 
-  // 앵커 카드
   anchorCard: { backgroundColor: '#fff', borderRadius: 10, padding: 12, borderWidth: 1, borderColor: '#eee' },
   anchorImage: { width: '100%', height: 200, borderRadius: 8, backgroundColor: '#f3f3f3' },
 
