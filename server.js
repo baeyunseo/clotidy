@@ -426,6 +426,10 @@ app.get('/api/situation/:situationName', async (req, res) => {
   }
 });
 
+// server.js 최하단 listen 위에 추가
+app.get('/__whoami', (req,res)=> res.json({ ok:true, tag:'recommend-route-build' }));
+console.log('[BOOT] build tag: recommend-route-build');
+
 
 // 서버 시작
 const PORT = process.env.PORT || 5000;
