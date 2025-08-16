@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, FlatList, Image, TouchableOpacity,
   Modal, TextInput, Pressable, ActivityIndicator, Alert
 } from 'react-native';
-import { Calendar, DateData } from 'react-native-calendars'; // ⬅️ MarkedDates import 제거
+import { Calendar, DateObject } from 'react-native-calendars';
 import { Picker } from '@react-native-picker/picker';
 import auth from '@react-native-firebase/auth';
 import axios from 'axios';
@@ -11,17 +11,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 
-/* ---------- Local types (라이브러리 타입 미-export 대비) ---------- */
-type MarkedMap = {
-  [isoDate: string]: {
-    selected?: boolean;
-    selectedColor?: string;
-    selectedTextColor?: string;
-    marked?: boolean;
-    dots?: { color: string; key?: string }[];
-  };
-};
-
+/* ---------- Types ---------- */
 type Cloth = {
   id: string;
   name: string;
@@ -41,13 +31,8 @@ type WearRecord = {
 /* ---------- API ---------- */
 const BASE_URL = 'http://54.79.167.144:5000';
 const ENDPOINTS = {
-  // 服一覧取得
-  getClothes: (uid: string) => `${BASE_URL}/api/get-clothes/${uid}`,
-  // 月次の着用記録（あれば使う。404ならフォールバック）
-  getWearRecords: (uid: string, start: string, end: string) =>
-    `${BASE_URL}/api/wear-records/${uid}?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`,
-  // 着用登録：回数+最終着用を更新
-  increaseWornCount: (clothId: string) => `${BASE_URL}/api/increase-worn-count/${clothId}`,
+  getClothes: (uid: string) => `${BASE_URL}/api/get-clothes/${encodeURIComponent(uid)}`,
+  setLastWorn: (clothId: string) => `${BASE_URL}/api/last-worn/${encodeURIComponent(clothId)}`, // PATCH
 };
 async function authHeaders() {
   const token = await auth().currentUser?.getIdToken();
@@ -66,12 +51,14 @@ const toISODate = (d: Date) => d.toISOString().slice(0, 10);
 const toStartOfDayZ = (ymd: string) => `${ymd}T00:00:00.000Z`;
 
 export default function CalendarRecordScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
   /* ---------- Auth ---------- */
   const [uid, setUid] = useState<string | null>(null);
   useEffect(() => auth().onAuthStateChanged(u => setUid(u?.uid ?? null)), []);
 
   /* ---------- State ---------- */
-  const [selected, setSelected] = useState<string>(toISO(new Date()));
+  const [selected, setSelected] = useState<string>(toISODate(new Date()));
   const [loading, setLoading] = useState(true);
 
   const [clothes, setClothes] = useState<Record<string, Cloth>>({});
@@ -109,7 +96,7 @@ export default function CalendarRecordScreen() {
           map[item.id] = item;
         });
         if (!cancelled) setClothes(map);
-      } catch (e: any) {
+      } catch (e:any) {
         console.error('❌ getClothes error:', e?.response?.status, e?.message);
         if (!cancelled) setClothes({});
       } finally {
@@ -119,80 +106,39 @@ export default function CalendarRecordScreen() {
     return () => { cancelled = true; };
   }, [uid]);
 
-  /* ---------- Fetch: Monthly records (GET /api/wear-records …) ---------- */
+  /* ---------- Build calendar marks from clothes.lastWorn ---------- */
   useEffect(() => {
-    if (!uid) return;
-    let cancelled = false;
-    const { start, end } = monthRange(selected);
-    setLoading(true);
-    (async () => {
-      try {
-        const headers = await authHeaders();
-        const res = await axios.get(ENDPOINTS.getWearRecords(uid, start, end), { headers });
-        const byDate: Record<string, WearRecord[]> = {};
-        (res.data || []).forEach((d: any) => {
-          const wr: WearRecord = {
-            id: String(d.id),
-            date: d.date,
-            clothId: String(d.clothId ?? d.cloth_id),
-            memo: d.memo ?? '',
-          };
-          byDate[wr.date] = [...(byDate[wr.date] ?? []), wr];
-        });
-        if (!cancelled) setRecordsByDate(byDate);
-      } catch (e:any) {
-        // ★ 404ならフォールバック：clothes.lastWorn から構築
-        if (e?.response?.status === 404) {
-          const byDate: Record<string, WearRecord[]> = {};
-          Object.values(clothes).forEach(c => {
-            if (c.lastWorn) {
-              byDate[c.lastWorn] = [
-                ...(byDate[c.lastWorn] ?? []),
-                { id: `${c.id}-${c.lastWorn}`, date: c.lastWorn, clothId: c.id, memo: '' }
-              ];
-            }
-          });
-          if (!cancelled) setRecordsByDate(byDate);
-        } else {
-          console.error('❌ getWearRecords error:', e?.response?.status, e?.message);
-          if (!cancelled) setRecordsByDate({});
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
+    const byDate: Record<string, WearRecord[]> = {};
+    Object.values(clothes).forEach(c => {
+      if (c.lastWorn) {
+        byDate[c.lastWorn] = [
+          ...(byDate[c.lastWorn] ?? []),
+          { id: `${c.id}-${c.lastWorn}`, date: c.lastWorn, clothId: c.id, memo: '' }
+        ];
       }
-    })();
-    return () => { cancelled = true; };
-  }, [uid, selected, clothes]);
+    });
+    setRecordsByDate(byDate);
+  }, [clothes]);
 
   /* ---------- Calendar marks ---------- */
-  const marked = useMemo<MarkedMap>(() => {
-    const marks: MarkedMap = {};
-    Object.keys(recordsByDate).forEach(d => {
-      marks[d] = { dots: [{ color: ACCENT }] };
-    });
-    marks[selected] = {
-      ...(marks[selected] || {}),
-      selected: true,
-      selectedColor: ACCENT,
-      selectedTextColor: '#fff',
-    };
+  const marked = useMemo(() => {
+    const marks: any = {};
+    Object.keys(recordsByDate).forEach(d => { marks[d] = { marked: true, dots: [{ color: ACCENT }] }; });
+    marks[selected] = { ...(marks[selected] || {}), selected: true, selectedColor: ACCENT, selectedTextColor: '#fff' };
     return marks;
   }, [recordsByDate, selected]);
-
   const listForSelectedDay = recordsByDate[selected] ?? [];
-  const onDayPress = (day: DateData) => setSelected(day.dateString);
+  const onDayPress = (day: DateObject) => setSelected(day.dateString);
 
   /* ---------- Filters ---------- */
   const locations = useMemo(() => {
     const vals = Object.values(clothes).map(c => c.locationLabel).filter(v => !!v && v.trim());
     return ['전체', ...Array.from(new Set(vals))];
   }, [clothes]);
-
   const categories = useMemo(() => {
     const vals = Object.values(clothes).map(c => c.category).filter(v => !!v && v.trim());
     return ['전체', ...Array.from(new Set(vals))];
   }, [clothes]);
-
   const clothesForPick = useMemo(() => {
     return Object.values(clothes).filter(c => {
       const okLoc = !selLocation || selLocation === '전체' || c.locationLabel === selLocation;
@@ -200,33 +146,41 @@ export default function CalendarRecordScreen() {
       return okLoc && okCat;
     });
   }, [clothes, selLocation, selCategory]);
-
   const clothesLoaded = Object.keys(clothes).length > 0;
 
-  /* ---------- 空状態の文言制御 ---------- */
+  /* ---------- Empty ---------- */
   const hasAnyRecords = useMemo(
     () => Object.values(recordsByDate).some(list => (list?.length ?? 0) > 0),
     [recordsByDate]
   );
 
-  /* ---------- Register (POST /api/increase-worn-count/:clothId) ---------- */
+  /* ---------- Register via PATCH /api/last-worn/:clothId ---------- */
   const onConfirmAdd = async () => {
     if (!uid) return Alert.alert('오류', '로그인이 필요합니다.');
     if (!form.clothId) return Alert.alert('안내', '아이템을 선택해 주세요.');
 
     try {
-      const headers = await authHeaders();
-      // date と memo は任意でBodyへ
-      await axios.post(
-        ENDPOINTS.increaseWornCount(form.clothId),
-        { date: selected, memo: form.memo ?? '' },
+      const headersBase = await authHeaders();
+      const headers = { 'Content-Type': 'application/json', ...(headersBase || {}) };
+
+      const url = ENDPOINTS.setLastWorn(String(form.clothId));
+      console.log('PATCH URL:', url, 'clothId:', form.clothId, 'date:', selected);
+
+      await axios.patch(
+        url,
+        {
+          last_worn: toStartOfDayZ(selected), // 例: 2025-08-10T00:00:00.000Z
+          alsoIncrement: true,                // カウントも増やす
+          memo: form.memo ?? ''
+        },
         { headers }
       );
 
+      // モーダル閉じ＋フォーム初期化
       setOpen(false);
       setForm({ clothId: '', memo: '' });
 
-      // 楽観更新：服の最終着用日/着用回数 & 当日のリスト
+      // 楽観更新（clothes・recordsByDate 双方を更新）
       setClothes(prev => {
         const cur = prev[form.clothId];
         if (!cur) return prev;
@@ -248,7 +202,7 @@ export default function CalendarRecordScreen() {
         return next;
       });
     } catch (e:any) {
-      console.error('❌ increaseWornCount error:', e?.response?.status, e?.message, e?.response?.data);
+      console.error('❌ setLastWorn error:', e?.response?.status, e?.message, e?.response?.data);
       Alert.alert('오류', '기록 추가에 실패했습니다.');
     }
   };
@@ -268,8 +222,7 @@ export default function CalendarRecordScreen() {
         <Calendar
           current={selected}
           onDayPress={onDayPress}
-          markedDates={marked as any}   // ⬅️ 로컬 타입 사용 시 any 캐스트(타입 충돌 방지)
-          markingType="multi-dot"
+          markedDates={marked}
           hideExtraDays
           theme={{
             backgroundColor: IVORY,
@@ -316,16 +269,14 @@ export default function CalendarRecordScreen() {
           ListEmptyComponent={
             <View style={{ paddingVertical: 24, alignItems: 'center' }}>
               <Text style={{ color: MUTE }}>
-                {Object.values(recordsByDate).some(list => (list?.length ?? 0) > 0)
-                  ? '이 날짜에는 기록이 없어요'
-                  : '아직 등록이 없습니다'}
+                {hasAnyRecords ? '이 날짜에는 기록이 없어요' : '아직 등록이 없습니다'}
               </Text>
             </View>
           }
         />
       )}
 
-      {/* 追加モーダル（頻度欄は削除済み） */}
+      {/* 追加モーダル */}
       <Modal transparent animationType="fade" visible={open} onRequestClose={() => setOpen(false)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
@@ -341,7 +292,7 @@ export default function CalendarRecordScreen() {
                   onValueChange={(v) => { setSelLocation(String(v)); setForm(s => ({ ...s, clothId: '' })); }}
                 >
                   {!clothesLoaded && <Picker.Item label="불러오는 중..." value="" />}
-                  {clothesLoaded && locations.map(loc => (
+                  {clothesLoaded && ['전체', ...locations.slice(1)].map(loc => (
                     <Picker.Item key={loc} label={loc} value={loc === '전체' ? '' : loc} />
                   ))}
                 </Picker>
@@ -358,7 +309,7 @@ export default function CalendarRecordScreen() {
                   onValueChange={(v) => { setSelCategory(String(v)); setForm(s => ({ ...s, clothId: '' })); }}
                 >
                   {!clothesLoaded && <Picker.Item label="불러오는 중..." value="" />}
-                  {clothesLoaded && categories.map(cat => ( // <-- 오타 주의! 아래에서 고칩니다.
+                  {clothesLoaded && ['전체', ...categories.slice(1)].map(cat => (
                     <Picker.Item key={cat} label={cat} value={cat === '전체' ? '' : cat} />
                   ))}
                 </Picker>
