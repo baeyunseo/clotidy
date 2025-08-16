@@ -1,7 +1,7 @@
 // src/screens/EditClothScreen.tsx
 // 옷 상세 정보 수정 화면
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import {
   ScrollView,
 } from "react-native";
 import axios from "axios";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/types";
 
@@ -22,35 +22,35 @@ const BASE_URL = "http://54.79.167.144:5000";
 
 type Cloth = {
   id: string;
-  cloth_name?: string;   // 서버 응답 키
-  name?: string;         // 혹시 name으로 올 수도 있으니 대비
+  cloth_name?: string; // 서버 응답 키
+  name?: string;       // 혹시 name으로 올 수도 있으니 대비
   category: string;
   location: string;
   image_url?: string;
 };
 
-type RouteParams = { clothId: string };
-
 export default function EditClothScreen() {
+  // 네비 / 라우트 타입 안전
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const route = useRoute<{ key: string; name: string; params: RouteParams }>();
-  const clothId = route.params?.clothId;
+  const route = useRoute<RouteProp<RootStackParamList, "EditCloth">>();
+  const clothId = route.params.clothId;
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [cloth, setCloth] = useState<Cloth | null>(null);
+  const [loadError, setLoadError] = useState(false); // 상세 로드 실패 여부
 
   // 폼 상태
   const [formName, setFormName] = useState("");
   const [formCategory, setFormCategory] = useState("");
   const [formLocation, setFormLocation] = useState("");
 
-  const imageUrl = cloth?.image_url
-    ? cloth.image_url.startsWith("http")
-      ? cloth.image_url
-      : `${BASE_URL}/${cloth.image_url.replace(/^\//, "")}`
-    : "";
+  const imageUrl = useMemo(() => {
+    const raw = cloth?.image_url || "";
+    if (!raw) return "";
+    return raw.startsWith("http") ? raw : `${BASE_URL}/${raw.replace(/^\//, "")}`;
+  }, [cloth?.image_url]);
 
   const fetchDetail = async () => {
     if (!clothId) {
@@ -60,7 +60,8 @@ export default function EditClothScreen() {
     }
     setLoading(true);
     try {
-      const res = await axios.get(`${BASE_URL}/api/get-cloth/${clothId}`);
+      // 서버 느림 대비 타임아웃
+      const res = await axios.get(`${BASE_URL}/api/get-cloth/${clothId}`, { timeout: 5000 });
       const data: Cloth = res.data;
       setCloth(data);
 
@@ -68,10 +69,11 @@ export default function EditClothScreen() {
       setFormName(initialName);
       setFormCategory(data.category || "");
       setFormLocation(data.location || "");
+      setLoadError(false);
     } catch (e: any) {
-      console.error(e);
-      Alert.alert("불러오기 실패", e?.response?.data?.message || "상세 정보를 불러오지 못했습니다.");
-      navigation.goBack();
+      console.error("❌ get-cloth 실패:", e?.response?.status, e?.message);
+      setLoadError(true); // 화면은 유지
+      Alert.alert("안내", "상세 정보를 불러오지 못했습니다. 값 수정은 가능합니다.");
     } finally {
       setLoading(false);
     }
@@ -94,16 +96,17 @@ export default function EditClothScreen() {
 
     try {
       setSaving(true);
-      await axios.put(`${BASE_URL}/api/update-cloth/${clothId}`, {
+      // 서버 라우트는 PATCH 이므로 PATCH 사용
+      await axios.patch(`${BASE_URL}/api/update-cloth/${clothId}`, {
         cloth_name: name, // 서버가 기대하는 키
         category,
         location,
       });
 
       Alert.alert("완료", "수정되었습니다.");
-      navigation.goBack(); // 목록 화면으로 복귀 (목록에서 focus 시 재조회 권장)
+      navigation.goBack(); // 목록으로 복귀 (목록에서 focus 시 재조회 권장)
     } catch (e: any) {
-      console.error(e);
+      console.error("❌ update-cloth 실패:", e?.response?.status, e?.message);
       Alert.alert("수정 실패", e?.response?.data?.message || "잠시 후 다시 시도해주세요.");
     } finally {
       setSaving(false);
@@ -122,9 +125,13 @@ export default function EditClothScreen() {
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 32 }}>
       <Text style={styles.header}>상세 정보 수정</Text>
 
-      {imageUrl ? (
-        <Image source={{ uri: imageUrl }} style={styles.image} />
-      ) : null}
+      {loadError && (
+        <Text style={styles.warn}>
+          서버에서 상세를 불러오지 못했어요. 아래 값 편집 후 저장을 시도해 보세요.
+        </Text>
+      )}
+
+      {!!imageUrl && <Image source={{ uri: imageUrl }} style={styles.image} />}
 
       {/* 이름 */}
       <Text style={styles.label}>이름</Text>
@@ -182,6 +189,11 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#286E46",
     marginBottom: 16,
+    textAlign: "center",
+  },
+  warn: {
+    color: "#E04848",
+    marginBottom: 8,
     textAlign: "center",
   },
   image: {

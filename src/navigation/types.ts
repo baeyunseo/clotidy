@@ -24,8 +24,7 @@ export type RootStackParamList = {
   location?: string;
   imageUrl?: string; 
   };
-  Coordinate : undefined;
-  ClosetIndex: undefined;    // ✅ 이렇게
+  Coordinate: { seedClothId?: string; situationName?: '데일리'|'출근'|'데이트'|'여행'|'운동'|'파티' } | undefined;
   ClosetSelect: undefined;
   ClosetGrid: {
     rows: string;
@@ -44,7 +43,9 @@ export type RootStackParamList = {
   Alarm: undefined;
   Closet: undefined;
   Calendar: undefined;
-   EditCloth: { clothId: string };
+  EditCloth: { clothId: string };
+  
+
 };
 
   

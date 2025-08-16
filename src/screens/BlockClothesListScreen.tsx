@@ -29,7 +29,7 @@ type Cloth = {
 function getImageUrl(imageUrl: string | undefined | null) {
   if (!imageUrl) return "";
   if (imageUrl.startsWith("http")) return imageUrl;
-  return `${BASE_URL}/${imageUrl.replace(/^\//, "")}`;
+  return `${BASE_URL}/${String(imageUrl).replace(/^\//, "")}`;
 }
 
 export default function BlockClothesListScreen() {
@@ -74,7 +74,6 @@ export default function BlockClothesListScreen() {
 
   useEffect(() => {
     fetchClothes();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location]);
 
   // 삭제 실행
@@ -85,6 +84,20 @@ export default function BlockClothesListScreen() {
       fetchClothes(); // 목록 새로고침
     } catch (err: any) {
       Alert.alert("삭제 실패", err.message);
+    }
+  };
+
+  // 착용 기록 (핫픽스: 서버 수정 없이 동작)
+  const handleWear = async (clothId: string) => {
+    try {
+      await axios.patch(`${BASE_URL}/api/last-worn/${clothId}`, {
+        last_worn: new Date().toISOString(),
+        alsoIncrement: true,
+      });
+      Alert.alert('기록 완료', '오늘 착용으로 기록했고, 착용 횟수도 증가했어요.');
+      fetchClothes();
+    } catch (err: any) {
+      Alert.alert('오류', err?.message || '착용 기록에 실패했습니다.');
     }
   };
 
@@ -99,7 +112,9 @@ export default function BlockClothesListScreen() {
       >
         <Image source={infoIcon} style={styles.infoIcon} />
       </TouchableOpacity>
+
       <Image source={{ uri: getImageUrl(item.imageUrl) }} style={styles.image} />
+
       <View style={styles.infoBox}>
         {/* 이름과 삭제 아이콘 우측 */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -108,14 +123,30 @@ export default function BlockClothesListScreen() {
             <Image source={deleteIcon} style={styles.deleteIcon} />
           </TouchableOpacity>
         </View>
+
         <Text style={styles.meta}>{item.category}</Text>
-        <TouchableOpacity
-          style={styles.coordiBtn}
-          onPress={() => navigation.navigate("Coordinate")}
-        >
-          <Text style={styles.coordiText}>✔️  코디 제안</Text>
-        </TouchableOpacity>
+
+        {/* 버튼 세로 배치 (동일 높이) */}
+        <View style={styles.actionsCol}>
+          {/* 착용 */}
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.actionPrimary, styles.stackGap]}
+            onPress={() => handleWear(item.id)}
+          >
+            <Text style={styles.actionPrimaryText}>착용</Text>
+          </TouchableOpacity>
+
+          {/* 코디 제안 */}
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.actionOutline]}
+            // 🔧 FIX: seedClothId를 넘겨 아이템 기반 추천으로 진입
+            onPress={() => navigation.navigate("Coordinate", { seedClothId: item.id })} 
+          >
+            <Text style={styles.actionOutlineText}>✔️  코디 제안</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+
       {/* 삭제 재확인 모달 */}
       <Modal visible={deleteModalId === item.id} transparent animationType="fade">
         <Pressable style={styles.modalBg} onPress={() => setDeleteModalId(null)}>
@@ -132,6 +163,7 @@ export default function BlockClothesListScreen() {
           </View>
         </Pressable>
       </Modal>
+
       {/* 상세 정보/수정 모달 */}
       <Modal visible={infoModalId === item.id} transparent animationType="fade">
         <Pressable style={styles.modalBg} onPress={() => setInfoModalId(null)}>
@@ -175,137 +207,36 @@ export default function BlockClothesListScreen() {
   );
 }
 
+const BG = "#FFFEFA";
+const GREEN = "#6AC892";
+const GREEN_DARK = "#37955F";
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FFFEFA",
-    paddingTop: 32,
-  },
-  header: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#286E46",
-    margin: 20,
-    textAlign: "center"
-  },
-  emptyText: {
-    textAlign: "center",
-    marginTop: 30,
-    color: "#888",
-  },
+  container: { flex: 1, backgroundColor: BG, paddingTop: 32 },
+  header: { fontSize: 20, fontWeight: "bold", color: "#286E46", margin: 20, textAlign: "center" },
+  emptyText: { textAlign: "center", marginTop: 30, color: "#888" },
   card: {
-    width: '48%',
-    margin: '1%',
-    backgroundColor: '#FFFEFA',
-    borderRadius: 10,
-    overflow: 'hidden',
-    borderWidth: 0,
-    borderColor: 'transparent',
-    elevation: 0,
-    marginBottom: 20,
-    minHeight: 240,
+    width: '48%', margin: '1%', backgroundColor: BG, borderRadius: 10, overflow: 'hidden',
+    borderWidth: 0, borderColor: 'transparent', elevation: 0, marginBottom: 20, minHeight: 240,
   },
-  image: {
-    width: '100%',
-    aspectRatio: 1,
-    backgroundColor: '#fff',
-  },
-  infoBox: {
-    padding: 10,
-    justifyContent: "space-between",
-    minHeight: 100,
-  },
-  name: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#222",
-  },
-  meta: {
-    fontSize: 12,
-    color: "#666",
-    marginTop: 4,
-  },
-  coordiBtn: {
-    marginTop: 10,
-    backgroundColor: "#6AC892",
-    borderRadius: 8,
-    paddingVertical: 8,
-    alignItems: "center",
-  },
-  coordiText: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 13,
-  },
-  // info 아이콘 (우상단)
-  infoIconBox: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    zIndex: 2,
-  },
-  infoIcon: {
-    width: 22,
-    height: 22,
-    tintColor: "#222"
-  },
-  // 삭제 아이콘 (이름 옆)
-  deleteIcon: {
-    width: 20,
-    height: 20,
-    marginLeft: 8,
-    tintColor: "#222"
-  },
-  // 모달 (삭제, 정보)
-  modalBg: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.25)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalBox: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 24,
-    width: 260,
-    shadowColor: '#000',
-    shadowOpacity: 0.11,
-    shadowRadius: 16,
-    elevation: 7,
-  },
-  modalBtnGray: {
-    paddingVertical: 8,
-    paddingHorizontal: 18,
-    backgroundColor: "#eee",
-    borderRadius: 8,
-    marginRight: 10,
-  },
-  modalBtnRed: {
-    paddingVertical: 8,
-    paddingHorizontal: 18,
-    backgroundColor: "#D74B4B",
-    borderRadius: 8,
-  },
-  infoModalBox: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 28,
-    width: 270,
-    alignItems: 'flex-start',
-    shadowColor: '#000',
-    shadowOpacity: 0.11,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  editBtn: {
-    marginTop: 16,
-    backgroundColor: "#F5FFFA",
-    borderRadius: 8,
-    paddingHorizontal: 22,
-    paddingVertical: 8,
-    alignSelf: 'stretch',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: "#37955F",
-  },
+  image: { width: '100%', aspectRatio: 1, backgroundColor: '#fff' },
+  infoBox: { padding: 10, justifyContent: "space-between", minHeight: 100 },
+  name: { fontSize: 14, fontWeight: "bold", color: "#222" },
+  meta: { fontSize: 12, color: "#666", marginTop: 4 },
+  actionsCol: { marginTop: 10 },
+  actionBtn: { height: 35, borderRadius: 8, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  stackGap: { marginBottom: 5 },
+  actionPrimary: { backgroundColor: GREEN, borderColor: GREEN },
+  actionPrimaryText: { color: "#fff", fontWeight: "bold", fontSize: 13 },
+  actionOutline: { backgroundColor: BG, borderColor: GREEN },
+  actionOutlineText: { color: GREEN_DARK, fontWeight: "bold", fontSize: 13 },
+  infoIconBox: { position: "absolute", top: 8, right: 8, zIndex: 2 },
+  infoIcon: { width: 22, height: 22, tintColor: "#222" },
+  deleteIcon: { width: 20, height: 20, marginLeft: 8, tintColor: "#222" },
+  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.25)', justifyContent: 'center', alignItems: 'center' },
+  modalBox: { backgroundColor: '#fff', borderRadius: 12, padding: 24, width: 260, shadowColor: '#000', shadowOpacity: 0.11, shadowRadius: 16, elevation: 7 },
+  modalBtnGray: { paddingVertical: 8, paddingHorizontal: 18, backgroundColor: "#eee", borderRadius: 8, marginRight: 10 },
+  modalBtnRed: { paddingVertical: 8, paddingHorizontal: 18, backgroundColor: "#D74B4B", borderRadius: 8 },
+  infoModalBox: { backgroundColor: '#fff', borderRadius: 12, padding: 28, width: 270, alignItems: 'flex-start', shadowColor: '#000', shadowOpacity: 0.11, shadowRadius: 16, elevation: 8 },
+  editBtn: { marginTop: 16, backgroundColor: "#F5FFFA", borderRadius: 8, paddingHorizontal: 22, paddingVertical: 8, alignSelf: 'stretch', alignItems: 'center', borderWidth: 1, borderColor: GREEN_DARK },
 });
