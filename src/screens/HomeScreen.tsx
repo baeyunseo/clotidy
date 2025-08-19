@@ -27,9 +27,17 @@ type ClothItem = {
 const BASE_URL = "http://54.79.167.144:5000";
 const toAbs = (u?: string) => (!u ? "" : /^https?:\/\//i.test(u) ? u : `${BASE_URL}/${String(u).replace(/^\/?/, "")}`);
 
-// 아이콘
+// 카드용 아이콘
 const deleteIcon = require("../../assets/icons/delete.png");
 const infoIcon = require("../../assets/icons/Info.png");
+
+// ====== 오른쪽 상단 아이콘 크기(각자 따로 조절) ======
+const SEARCH_BOX = 55;     // 검색 버튼 터치 박스
+const SEARCH_GLYPH = 36;   // 검색 아이콘 실제 픽셀
+const BUY_BOX = 50;        // 구매 버튼 터치 박스
+const BUY_GLYPH = 26;      // 구매 아이콘 실제 픽셀
+const RIGHT_ICON_GAP = 8;
+// ====================================================
 
 export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState<"closet" | "list">("closet");
@@ -116,7 +124,7 @@ export default function HomeScreen() {
     };
   };
 
-  // 착용: 서버에만 기록(표시는 안 함)
+  // 착용 기록
   const handleWear = async (cloth: ClothItem) => {
     try {
       const uid = auth().currentUser?.uid;
@@ -143,9 +151,7 @@ export default function HomeScreen() {
     try {
       await axios.delete(`${BASE_URL}/api/delete-cloth/${encodeURIComponent(clothId)}`);
       setDeleteModalId(null);
-      // 목록에서 제거
       setClothes(prev => prev.filter(c => c.id !== clothId));
-      // 블록 카운트 갱신
       setClosetBlocks(prev => prev.map(b => ({
         ...b,
         items: (b.items ?? 0) - (clothes.some(c => c.id === clothId && (c.location ?? '').trim() === (b.name ?? '').trim()) ? 1 : 0)
@@ -254,9 +260,29 @@ export default function HomeScreen() {
 
         <Image source={require("../../assets/images/clotidy1.png")} style={styles.logo} />
 
-        <TouchableOpacity onPress={() => navigation.navigate("Search")} style={styles.iconBtn}>
-          <Image source={require("../../assets/icons/search_resized.png")} style={styles.searchIcon} />
-        </TouchableOpacity>
+        {/* 오른쪽: 검색 + 구매 (각자 사이즈 조절) */}
+        <View style={styles.rightTray}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Search")}
+            style={styles.searchBtnBox}
+          >
+            <Image
+              source={require("../../assets/icons/search_resized.png")}
+              style={styles.searchGlyph}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Buy")}
+            style={styles.buyBtnBox}
+          >
+            <Image
+              source={require("../../assets/icons/buy.png")}
+              style={{ width: BUY_GLYPH, height: BUY_GLYPH, resizeMode: "contain" }}
+            />
+          </TouchableOpacity>
+
+        </View>
       </View>
 
       {/* 탭 전환 */}
@@ -364,8 +390,32 @@ const styles = StyleSheet.create({
   },
   iconBtn: { padding: 6 },
   settingsIcon: { width: 35, height: 35, resizeMode: "contain" },
-  searchIcon: { width: 55, height: 55, resizeMode: "contain" },
   logo: { width: 126, height: 30, resizeMode: "contain", left: 10 },
+
+  // 오른쪽 아이콘 트레이 + 각 버튼
+  rightTray: { flexDirection: "row", alignItems: "center" },
+
+  searchBtnBox: {
+    width: SEARCH_BOX,
+    height: SEARCH_BOX,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  // 시각 보정: 리소스 여백이 많을 때 보이는 크기 키움
+  searchGlyph: {
+    width: SEARCH_GLYPH,
+    height: SEARCH_GLYPH,
+    resizeMode: "contain",
+    transform: [{ scale: 1.25 }],
+  },
+
+  buyBtnBox: {
+    width: BUY_BOX,
+    height: BUY_BOX,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: RIGHT_ICON_GAP,
+  },
 
   // 탭
   tabContainer: { flexDirection: "row", justifyContent: "center", marginBottom: 10 },
@@ -392,7 +442,7 @@ const styles = StyleSheet.create({
   card: {
     width: '48%', margin: '1%', backgroundColor: BG, borderRadius: 14, overflow: 'hidden',
     borderWidth: 0, borderColor: 'transparent', elevation: 0,
-    marginBottom: 20, // 간격
+    marginBottom: 20,
   },
   image: { width: '100%', aspectRatio: 1, backgroundColor: '#F3F3F3', borderRadius: 12 },
 

@@ -36,7 +36,7 @@ export type RootStackParamList = {
     cols: string;
     layout_type: string;
   };
-  
+  ClosetIndex: undefined;
   CheckCloset: undefined;
   RegisterCloth: { imageUri: string };  
   BlockClothesList: { location: string };
@@ -44,7 +44,7 @@ export type RootStackParamList = {
   Closet: undefined;
   Calendar: undefined;
   EditCloth: { clothId: string };
-  
+  Buy: undefined;
 
 };
 
