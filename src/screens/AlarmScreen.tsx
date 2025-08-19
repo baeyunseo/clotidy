@@ -9,6 +9,9 @@ import type { RootStackParamList } from '../navigation/types';
 import axios from 'axios';
 import auth from '@react-native-firebase/auth';
 
+// 🔔 通知ユーティリティ（tests: 即時表示 + 予約）
+import { ensureNotificationSetup, showReminderNow, scheduleReminderAt } from '../utils/notifications';
+
 type Cloth = {
   id: string;
   clothName: string;
@@ -26,7 +29,7 @@ const PADDING_TOP = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) +
 const getImageUrl = (u?: string | null) =>
   !u ? '' : /^https?:\/\//i.test(u) ? u : `${BASE_URL}/${String(u).replace(/^\//, '')}`;
 
-// --- 日付ユーティリティ（変更なし + Firestore Timestamp対応） ---
+// --- 日付ユーティリティ（Firestore Timestamp対応） ---
 const toDate = (v: any): Date | null => {
   if (v == null) return null;
   if (v?.seconds) return new Date(v.seconds * 1000); // Firestore Timestamp
@@ -45,14 +48,15 @@ const formatYmd = (v: any) => {
   return `${y}. ${m}. ${dd}`;
 };
 
-// --- ここから追記: 3か月（約90日）経過判定 ---
+// --- テスト: N日経過で対象化（本番は REMIND_DAYS=90 に戻す） ---
 const DAY_MS = 24 * 60 * 60 * 1000;
-const REMIND_INTERVAL_MS = 90 * DAY_MS;
-const shouldShowAfter3Months = (doc: Cloth): boolean => {
-  // lastWorn → updatedAt → createdAt の順で基準日を決める
+const REMIND_DAYS = 90; // ← テスト用: 1日に設定（本番は90に）
+const REMIND_INTERVAL_MS = REMIND_DAYS * DAY_MS;
+
+const shouldShowAfterDays = (doc: Cloth): boolean => {
   const base = toDate(doc.lastWorn ?? doc.updatedAt ?? doc.createdAt);
   if (!base) return false;
-  return (Date.now() - base.getTime()) >= REMIND_INTERVAL_MS;
+  return Date.now() - base.getTime() >= REMIND_INTERVAL_MS;
 };
 
 export default function AlarmScreen() {
@@ -63,6 +67,11 @@ export default function AlarmScreen() {
   useLayoutEffect(() => {
     navigation.setOptions?.({ headerShown: false } as any);
   }, [navigation]);
+
+  // 通知の権限＆チャンネル準備
+  useEffect(() => {
+    ensureNotificationSetup().catch(console.warn);
+  }, []);
 
   const fetchAll = useCallback(async () => {
     const uid = auth().currentUser?.uid;
@@ -87,10 +96,23 @@ export default function AlarmScreen() {
         ...it,
       }));
 
-      // ▼ ここで「3か月経過したものだけ」抽出
-      const filtered = mapped.filter(shouldShowAfter3Months);
+      // （任意）次回通知をローカル予約：基準日 + 1日 の朝9:00
+      for (const it of mapped) {
+        const base = toDate(it.lastWorn ?? it.updatedAt ?? it.createdAt);
+        if (!base) continue;
+        const next = new Date(base.getTime() + 1 * DAY_MS); // テストなので +1日
+        next.setHours(9, 0, 0, 0);
+        if (next.getTime() > Date.now()) {
+          const title = '착용 리마인드(예약)';
+          const body = `${it.clothName ?? '아이템'}이(가) 마지막 착용 후 1일이 지났어요.`;
+          scheduleReminderAt(next, title, body).catch(console.warn);
+        }
+      }
 
-      // 表示は最近のものが上に来るように（基準日が新しい順）
+      // ▼ N日経過したものだけ抽出
+      const filtered = mapped.filter(shouldShowAfterDays);
+
+      // 新しい基準日順にソート
       filtered.sort((a, b) => {
         const at = toDate(a.lastWorn ?? a.updatedAt ?? a.createdAt)?.getTime() ?? 0;
         const bt = toDate(b.lastWorn ?? b.updatedAt ?? b.createdAt)?.getTime() ?? 0;
@@ -98,6 +120,19 @@ export default function AlarmScreen() {
       });
 
       setItems(filtered);
+
+      // 対象が1件以上なら即バナー通知
+      if (filtered.length > 0) {
+        const first = filtered[0];
+        const count = filtered.length;
+        const name = first.clothName ?? '아이템';
+        const title = '착용 리마인드';
+        const body =
+          count === 1
+            ? `최근 ${REMIND_DAYS}일 동안 착용하지 않은 옷: ${name}`
+            : `${name} 외 ${count - 1}개가 ${REMIND_DAYS}일 넘게 미착용이에요.`;
+        showReminderNow(title, body).catch(console.warn);
+      }
     } catch (e: any) {
       console.warn('[Alarm] fetch error', e?.message || e);
       Alert.alert('에러', e?.message || '옷 목록을 불러올 수 없습니다.');
@@ -154,8 +189,8 @@ export default function AlarmScreen() {
         <TouchableOpacity style={styles.backHit} onPress={() => navigation.goBack()}>
           <Text style={styles.backIcon}>‹</Text>
         </TouchableOpacity>
+
         <Text style={styles.topTitle}>착용 리마인드</Text>
-        <View style={{ width: 32 }} />
       </View>
 
       <FlatList
