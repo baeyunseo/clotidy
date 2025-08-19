@@ -139,17 +139,6 @@ export async function fetchPurchaseRecommendation({
   return data;
 }
 
-export async function fetchRecommendByCloth({ clothId, userId, weather, lat, lon }) {
-  const params = {};
-  if (userId) params.user_id = userId;
-  if (weather) params.weather = weather;
-  if (lat) params.lat = lat;
-  if (lon) params.lon = lon;
-
-  const url = `${AI_BASE}/recommend/${encodeURIComponent(clothId)}`;
-  const { data } = await axios.get(url, { params, timeout: 10000 });
-  return data;
-}
 
 //특정 옷 기반 코디
 export async function fetchRecommendByCloth({ clothId, userId, weather, lat, lon }) {
