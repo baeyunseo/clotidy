@@ -1,7 +1,7 @@
 // src/screens/HomeScreen.tsx
 // 홈 화면
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, StatusBar,
   Dimensions, FlatList, ActivityIndicator, Alert, Modal, Pressable
@@ -24,12 +24,18 @@ type ClothItem = {
   user_id?: string;
 };
 
+type Season = "summer" | "winter";
+
 const BASE_URL = "http://54.79.167.144:5000";
 const toAbs = (u?: string) => (!u ? "" : /^https?:\/\//i.test(u) ? u : `${BASE_URL}/${String(u).replace(/^\/?/, "")}`);
 
 // 카드용 아이콘
 const deleteIcon = require("../../assets/icons/delete.png");
 const infoIcon = require("../../assets/icons/Info.png");
+
+// 시즌 토글 아이콘
+const sunIcon = require("../../assets/icons/sun.png");   // ☀️
+const snowIcon = require("../../assets/icons/snow.png"); // ❄️
 
 // ====== 오른쪽 상단 아이콘 크기(각자 따로 조절) ======
 const SEARCH_BOX = 55;     // 검색 버튼 터치 박스
@@ -38,6 +44,24 @@ const BUY_BOX = 50;        // 구매 버튼 터치 박스
 const BUY_GLYPH = 26;      // 구매 아이콘 실제 픽셀
 const RIGHT_ICON_GAP = 8;
 // ====================================================
+
+// 카테고리 → 시즌 간단 매핑
+const categorySeasonMap: Record<string, Season | "all" | "mid"> = {
+  // 여름
+  "tshirt": "summer", "shorts": "summer", "sleeveless top": "summer",
+  "sandal": "summer", "flip flops": "summer", "linen": "summer",
+  // 겨울
+  "coat": "winter", "jacket": "winter", "down": "winter",
+  "cardigan": "winter", "sweater": "winter", "boots": "winter",
+  // 간절기/상시
+  "shirt": "mid", "jeans": "mid", "skirt": "mid", "dress": "mid",
+  "loafers": "mid", "sneakers": "all", "handbag": "all", "belt": "all", "hat": "all"
+};
+const getItemSeason = (category?: string): Season | "all" | "mid" => {
+  if (!category) return "all";
+  const key = category.toLowerCase().trim();
+  return categorySeasonMap[key] ?? "all";
+};
 
 export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState<"closet" | "list">("closet");
@@ -51,6 +75,9 @@ export default function HomeScreen() {
   const [wearingId, setWearingId] = useState<string | null>(null);
   const [deleteModalId, setDeleteModalId] = useState<string | null>(null);
   const [infoModalId, setInfoModalId] = useState<string | null>(null);
+
+  // 시즌 토글 (기본 ☀️)
+  const [season, setSeason] = useState<Season>("summer");
 
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const gridWidth = Dimensions.get("window").width - 40;
@@ -161,6 +188,38 @@ export default function HomeScreen() {
       Alert.alert("삭제 실패", err?.message || "삭제에 실패했습니다.");
     }
   };
+
+  // 시즌 우선 정렬: 선택 시즌 > 상시/간절기 > 반대 시즌
+  const sortedClothes = useMemo(() => {
+    const score = (it: ClothItem) => {
+      const s = getItemSeason(it.category);
+      if (s === season) return 2;
+      if (s === "all" || s === "mid") return 1;
+      return 0;
+    };
+    return [...clothes].sort((a, b) => score(b) - score(a));
+  }, [clothes, season]);
+
+  // 공통 헤더 — 크기/여백 기존 그대로. 우측에 시즌 토글 아이콘만 덧댐(absolute)
+  const renderUserBox = () => (
+    <View style={styles.userBox}>
+      <Text style={styles.sectionTitle}>{userName}의 옷장</Text>
+      <Text style={styles.sectionDesc}>총 {clothingCount}개의 아이템이 있습니다.</Text>
+
+      <TouchableOpacity
+        onPress={() => setSeason(prev => (prev === "summer" ? "winter" : "summer"))}
+        style={styles.seasonToggleBtn}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        accessibilityRole="button"
+        accessibilityLabel="시즌 토글"
+      >
+        <Image
+          source={season === "summer" ? sunIcon : snowIcon}
+          style={styles.seasonToggleIcon}
+        />
+      </TouchableOpacity>
+    </View>
+  );
 
   const renderItem = ({ item }: { item: ClothItem }) => (
     <View style={styles.card}>
@@ -297,10 +356,7 @@ export default function HomeScreen() {
 
       {activeTab === "closet" ? (
         <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 }]}>
-          <View style={styles.userBox}>
-            <Text style={styles.sectionTitle}>{userName}의 옷장</Text>
-            <Text style={styles.sectionDesc}>총 {clothingCount}개의 아이템이 있습니다.</Text>
-          </View>
+          {renderUserBox()}
 
           <View style={[styles.gridAbsoluteBox, { width: gridWidth, height: rowCount * cellSize }]}>
             {[...Array(colCount + 1)].map((_, colIdx) => (
@@ -341,11 +397,13 @@ export default function HomeScreen() {
         </ScrollView>
       ) : (
         <FlatList
-          data={clothes}
+          data={sortedClothes}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
           numColumns={2}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
+          // 헤더에 "OO의 옷장" — 여백/패딩 변경 없이 동일
+          ListHeaderComponent={renderUserBox}
         />
       )}
 
@@ -401,7 +459,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  // 시각 보정: 리소스 여백이 많을 때 보이는 크기 키움
   searchGlyph: {
     width: SEARCH_GLYPH,
     height: SEARCH_GLYPH,
@@ -422,10 +479,24 @@ const styles = StyleSheet.create({
   tab: { marginHorizontal: 20, fontSize: 16, color: "#777" },
   activeTab: { color: GREEN, fontWeight: "bold", borderBottomWidth: 2, borderColor: GREEN },
 
+  // 좌우 패딩 컨텍스트
   scrollContent: { paddingHorizontal: 20 },
-  userBox: { borderWidth: 1, borderColor: GREEN, borderRadius: 12, padding: 15, marginBottom: 20 },
+
+  // "OO의 옷장" — 기존 크기 그대로
+  userBox: {
+    borderWidth: 1, borderColor: GREEN, borderRadius: 12,
+    padding: 15, marginBottom: 20, backgroundColor: BG
+  },
   sectionTitle: { fontSize: 16, color: "#37955F", fontWeight: "bold" },
   sectionDesc: { color: "#555", marginTop: 5 },
+
+  // 시즌 토글 버튼(레이아웃 영향 없도록 absolute)
+  seasonToggleBtn: {
+    position: "absolute", right: 12, top: 12, padding: 4
+  },
+  seasonToggleIcon: {
+    width: 22, height: 22, resizeMode: "contain"
+  },
 
   gridAbsoluteBox: { position: 'relative', alignSelf: 'center', marginTop: 10 },
   gridText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
