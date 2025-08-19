@@ -27,17 +27,26 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir);
 }
 
-// Multer 저장 설정
+
+// Multer 저장 설정 (유저별 하위 폴더)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, uploadDir);
+    // form-data 안에 들어온 키 중 하나로 userId 우선 사용, 없으면 user_id, 그래도 없으면 'misc'
+    const raw = (req.body?.userId || req.body?.user_id || 'misc') + '';
+    // 안전한 폴더명으로 정규화 (영문/숫자/_/-만 허용)
+    const safeUserId = raw.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 100) || 'misc';
+    const dir = path.join('uploads', safeUserId);
+    fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
-    const basename = path.basename(file.originalname, ext);
-    cb(null, `${basename}-${Date.now()}${ext}`);
+    const base = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9._-]/g, '').slice(0, 80) || 'file';
+    const stamp = Date.now().toString(36);
+    cb(null, `${base}-${stamp}${ext}`);
   }
 });
+
 const upload = multer({ storage });
 
 const app = express();
