@@ -85,6 +85,7 @@ app.post('/api/register-cloth', upload.single('file'), async (req, res) => {
   if (!imagePath) {
     return res.status(400).json({ error: '이미지 파일이 누락되었어요 😅' });
   }
+  
 
   try {
     const semanticCategory =  [mapSemanticCategory(category || "unknown")];
@@ -95,7 +96,6 @@ app.post('/api/register-cloth', upload.single('file'), async (req, res) => {
       category,
       color,
       "unknown",        // season
-      imagePath,
       location,
       absUrl,
       colorRgb ? JSON.parse(colorRgb) : null,

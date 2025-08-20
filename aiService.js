@@ -4,7 +4,7 @@ import fs from "fs";
 import FormData from "form-data";
 // === [ADD] 생성형 AI 베이스 URL (8001 포트) ===
 const AI_GEN_BASE_URL = process.env.AI_GEN_BASE_URL || "http://54.79.167.144:8001";
-
+const AI_GEN_PATH = process.env.AI_GEN_PATH || "/purchase-ai/judge"; // 스펙 반영
 
 // 
 export async function fetchColorFromAI(imagePath) {
@@ -121,15 +121,13 @@ export async function fetchPurchaseRecommendation({
 
   const form = new FormData();
   form.append("file", fs.createReadStream(targetImagePath));
-  form.append("user_id", userId);
-  form.append("closet_images", JSON.stringify(closetImageUrls));
-  form.append("top_k", String(topK));
 
-  const { data } = await axios.post(
-    `${AI_GEN_BASE_URL}/similarity/recommend`,
-    form,
-    { headers: form.getHeaders(), timeout: 20000 }
-  );
+ const url = `${AI_GEN_BASE_URL}${AI_GEN_PATH}`;
+ const { data } = await axios.post(url, form, {
+    headers: form.getHeaders(),
+    timeout: 20000,
+    params: { user_id: userId } // ← 쿼리 파라미터로 보냄
+  });
 
   // 기대 응답 예:
   // {
