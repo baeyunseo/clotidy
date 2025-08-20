@@ -97,6 +97,7 @@ app.post('/api/register-cloth', upload.single('file'), async (req, res) => {
       "unknown",        // season
       imagePath,
       location,
+      absUrl,
       colorRgb ? JSON.parse(colorRgb) : null,
       subColorRgb ? JSON.parse(subColorRgb) : null,
       semanticCategory,
