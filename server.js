@@ -80,6 +80,7 @@ app.post('/api/register-cloth', upload.single('file'), async (req, res) => {
   category = "unknown";
 }
   const imagePath = req.file?.path;
+  const absUrl = toAbsoluteUrl(req, imagePath); //url 경로 변환
 
   if (!imagePath) {
     return res.status(400).json({ error: '이미지 파일이 누락되었어요 😅' });
