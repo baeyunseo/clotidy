@@ -34,7 +34,7 @@ export default function MyPageScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.card}  onPress={() => {}}>
-          <Image source={require('../../assets/icons/settings.png')} style={styles.icon} />
+          <Image source={require('../../assets/icons/settings.png')} style={styles.settingIcon} />
           <Text style={styles.cardText}>설정</Text>
         </TouchableOpacity>
       </View>
@@ -103,8 +103,8 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   icon: {
-    width: 35,
-    height: 35,
+    width: 30,
+    height: 30,
     marginBottom: 10,
     tintColor: '#333',
   },
@@ -132,4 +132,11 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
   },
+  settingIcon: {
+  width: 40,   // ← 好きな大きさ
+  height: 35,
+  marginBottom: 10,
+  tintColor: '#333',
+},
+
 });

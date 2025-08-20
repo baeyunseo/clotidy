@@ -11,6 +11,7 @@ import axios from 'axios';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
+import { Swipeable, GestureHandlerRootView } from 'react-native-gesture-handler';
 
 type MarkedMap = {
   [isoDate: string]: {
@@ -41,11 +42,10 @@ type WearRecord = {
 const BASE_URL = 'http://54.79.167.144:5000';
 const ENDPOINTS = {
   getClothes: (uid: string) => `${BASE_URL}/api/get-clothes/${uid}`,
-  // 없으면 404가 떨어져도 됨(아래에서 폴백 처리)
   getWearRecords: (uid: string, start: string, end: string) =>
     `${BASE_URL}/api/wear-records/${uid}?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`,
-  // ✅ 서버에 실제 존재하는 라우트
   patchLastWorn: (clothId: string) => `${BASE_URL}/api/last-worn/${clothId}`,
+  deleteWearRecord: (recordId: string) => `${BASE_URL}/api/wear-records/${recordId}`,
 };
 async function authHeaders() {
   const token = await auth().currentUser?.getIdToken();
@@ -81,7 +81,6 @@ export default function CalendarRecordScreen() {
   const [uid, setUid] = useState<string | null>(null);
   useEffect(() => auth().onAuthStateChanged(u => setUid(u?.uid ?? null)), []);
 
-  // ✅ 여기! toISODate 사용
   const [selected, setSelected] = useState<string>(toISODate(new Date()));
   const [loading, setLoading] = useState(true);
 
@@ -197,7 +196,6 @@ export default function CalendarRecordScreen() {
 
   const clothesLoaded = Object.keys(clothes).length > 0;
 
-  // ✅ 선택 날짜로 last_worn 저장 + 착용수 +1
   const onConfirmAdd = async () => {
     if (!uid) return Alert.alert('오류', '로그인이 필요합니다.');
     if (!form.clothId) return Alert.alert('안내', '아이템을 선택해 주세요.');
@@ -212,7 +210,6 @@ export default function CalendarRecordScreen() {
       setOpen(false);
       setForm({ clothId: '', memo: '' });
 
-      // 낙관적 반영
       setClothes(prev => {
         const cur = prev[form.clothId];
         if (!cur) return prev;
@@ -235,8 +232,24 @@ export default function CalendarRecordScreen() {
     }
   };
 
+  // 左スワイプで削除（UI 楽観反映 + サーバ削除）
+  const onDeleteRecord = async (rec: WearRecord) => {
+    setRecordsByDate(prev => {
+      const next = { ...prev };
+      next[rec.date] = (next[rec.date] ?? []).filter(r => r.id !== rec.id);
+      if (next[rec.date]?.length === 0) delete next[rec.date];
+      return next;
+    });
+    try {
+      const headers = await authHeaders();
+      await axios.delete(ENDPOINTS.deleteWearRecord(rec.id), { headers });
+    } catch (e: any) {
+      console.warn('delete wear record failed (ignored):', e?.response?.status);
+    }
+  };
+
   return (
-    <View style={styles.container}>
+    <GestureHandlerRootView style={styles.container}>
       <View style={styles.headerSpacer}>
         <TouchableOpacity style={styles.backButtonAbsolute} onPress={() => navigation.goBack()}>
           <Text style={styles.backArrow}>{'<'}</Text>
@@ -283,17 +296,29 @@ export default function CalendarRecordScreen() {
           contentContainerStyle={{ paddingBottom: 24 }}
           renderItem={({ item }) => {
             const cloth = clothes[item.clothId];
+            const RightActions = () => (
+              <TouchableOpacity style={styles.swipeDelete} onPress={() => onDeleteRecord(item)}>
+                <Text style={styles.swipeDeleteText}>삭제</Text>
+              </TouchableOpacity>
+            );
             return (
-              <View style={styles.row}>
-                <Image source={{ uri: cloth?.thumbnail || '' }} style={styles.thumb} />
-                <View style={styles.meta}>
-                  <Text style={styles.name}>{cloth?.name ?? '아이템'}</Text>
-                  <Text style={styles.sub}>{cloth?.locationLabel ?? ''}</Text>
-                  <Text style={styles.sub}>마지막 착용일 : {cloth?.lastWorn ?? '-'}</Text>
-                  <Text style={styles.sub}>총 착용 : {typeof cloth?.wearCount === 'number' ? cloth?.wearCount : 0}회</Text>
-                  {!!item.memo && <Text style={styles.sub}>메모 : {item.memo}</Text>}
+              <Swipeable
+                renderRightActions={RightActions}
+                overshootRight={false}
+                rightThreshold={56}
+                onSwipeableOpen={(dir) => console.log('opened:', dir)}
+              >
+                <View style={styles.row}>
+                  <Image source={{ uri: cloth?.thumbnail || '' }} style={styles.thumb} />
+                  <View style={styles.meta}>
+                    <Text style={styles.name}>{cloth?.name ?? '아이템'}</Text>
+                    <Text style={styles.sub}>{cloth?.locationLabel ?? ''}</Text>
+                    <Text style={styles.sub}>마지막 착용일 : {cloth?.lastWorn ?? '-'}</Text>
+                    <Text style={styles.sub}>총 착용 : {typeof cloth?.wearCount === 'number' ? cloth?.wearCount : 0}회</Text>
+                    {!!item.memo && <Text style={styles.sub}>메모 : {item.memo}</Text>}
+                  </View>
                 </View>
-              </View>
+              </Swipeable>
             );
           }}
           ListEmptyComponent={
@@ -388,7 +413,7 @@ export default function CalendarRecordScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </GestureHandlerRootView>
   );
 }
 
@@ -438,4 +463,20 @@ const styles = StyleSheet.create({
   btnGhost: {},
   btnPrimary: { backgroundColor: ACCENT, borderBottomRightRadius: 16 },
   btnText: { fontSize: 16, fontWeight: '700' },
+
+  // 左スワイプ時に出る削除ボタン
+  swipeDelete: {
+    width: 84,
+    backgroundColor: '#E04848',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderTopLeftRadius: 8,
+    borderBottomLeftRadius: 8,
+    marginVertical: 6,
+  },
+  swipeDeleteText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
+  },
 });

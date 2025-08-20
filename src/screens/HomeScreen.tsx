@@ -39,9 +39,9 @@ const snowIcon = require("../../assets/icons/snow.png"); // ❄️
 
 // ====== 오른쪽 상단 아이콘 크기(각자 따로 조절) ======
 const SEARCH_BOX = 55;     // 검색 버튼 터치 박스
-const SEARCH_GLYPH = 36;   // 검색 아이콘 실제 픽셀
+const SEARCH_GLYPH = 45;   // 검색 아이콘 실제 픽셀
 const BUY_BOX = 50;        // 구매 버튼 터치 박스
-const BUY_GLYPH = 26;      // 구매 아이콘 실제 픽셀
+const BUY_GLYPH = 30;      // 구매 아이콘 실제 픽셀
 const RIGHT_ICON_GAP = 8;
 // ====================================================
 
@@ -447,8 +447,8 @@ const styles = StyleSheet.create({
     marginTop: 45, marginBottom: 5, paddingHorizontal: 16,
   },
   iconBtn: { padding: 6 },
-  settingsIcon: { width: 35, height: 35, resizeMode: "contain" },
-  logo: { width: 126, height: 30, resizeMode: "contain", left: 10 },
+  settingsIcon: { width: 40, height: 40, resizeMode: "contain" },
+  logo: { width: 126, height: 30, resizeMode: "contain", left: 30 },
 
   // 오른쪽 아이콘 트레이 + 각 버튼
   rightTray: { flexDirection: "row", alignItems: "center" },
