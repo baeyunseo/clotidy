@@ -110,30 +110,67 @@ export default function BuyScreen() {
       setMatches([]);
 
       const fd = new FormData();
-      fd.append('userId', uid);
+      fd.append('userId', uid);      // 서버에서 user_id로 변환해 AI에 전달
       fd.append('topK', '5');
       fd.append('file', { uri, name, type } as any);
 
       const resp = await postMultipart(`${BASE_URL}/api/recommend/purchase`, fd, 45000);
-      const dec: 'buy' | 'hold' | 'no' = resp?.decision || 'hold';
-      const top: Match[] = Array.isArray(resp?.top_matches)
-        ? resp.top_matches.map((m: any) => ({
-            image_url: toAbs(m?.image_url),
-            cloth_id: m?.cloth_id ?? null,
-            score: typeof m?.score === 'number' ? m.score : null
+
+      // 🔎 원본 응답 로깅
+      console.log('[purchase] raw resp =', resp);
+
+      // ✅ decision 추출(여러 키/위치 허용)
+      const rawDec = String(
+        resp?.decision ??
+        resp?.result ??
+        resp?.verdict ??
+        resp?.judge ??
+        resp?.judgement ??
+        resp?.data?.decision ??
+        resp?.data?.result ??
+        ''
+      ).toLowerCase();
+
+      const dec: 'buy' | 'hold' | 'no' =
+        ['buy', 'yes', 'recommend', 'go', 'true', 'ok'].includes(rawDec) ? 'buy' :
+        ['no', 'reject', 'deny', 'false', 'stop'].includes(rawDec) ? 'no' :
+        'hold';
+
+      // ✅ matches 추출(키 변형 허용)
+      const rawMatches =
+        resp?.top_matches ??
+        resp?.matches ??
+        resp?.topMatches ??
+        resp?.similar_items ??
+        resp?.data?.top_matches ??
+        resp?.data?.matches ??
+        [];
+
+      const top: Match[] = Array.isArray(rawMatches)
+        ? rawMatches.map((m: any) => ({
+            image_url: toAbs(m?.image_url ?? m?.imageUrl ?? m?.thumb ?? m?.thumbnail ?? ''),
+            cloth_id: m?.cloth_id ?? m?.clothId ?? null,
+            score:
+              typeof m?.score === 'number' ? m.score :
+              typeof m?.similarity === 'number' ? m.similarity :
+              null
           }))
         : [];
 
       setDecision(dec);
       setMatches(top);
 
-      const msg =
+      const reason =
+        resp?.reason ?? resp?.note ?? resp?.message ?? resp?.data?.reason ?? '';
+
+      const msgFromDecision =
         dec === 'buy'
           ? '구매 추천! 옷장과의 겹침이 적고 활용도가 높아 보여요 🙌'
           : dec === 'no'
           ? '구매 비추천… 유사 아이템이 많거나 활용도가 낮아 보여요 😢'
           : '보류! 조금 더 고민해 봐도 좋겠어요 🙂';
-      Alert.alert('구매 결정', msg);
+
+      Alert.alert('구매 결정', reason ? `${msgFromDecision}\n\n사유: ${reason}` : msgFromDecision);
     } catch (e: any) {
       console.log('purchase fail', e?.message);
       Alert.alert('오류', e?.message || '구매 결정 분석 실패');
