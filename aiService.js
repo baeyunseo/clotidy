@@ -119,9 +119,10 @@ export async function fetchPurchaseRecommendation({
 
   const form = new FormData();
   // 파일은 form-data
-  form.append("file", fs.createReadStream(targetImagePath));
   // AI 서버 요구사항: userId를 body(form-data)로
   form.append("user_id", userId); 
+  form.append("userId", userId);
+  form.append("file", fs.createReadStream(targetImagePath));
 
   const url = `${AI_GEN_BASE_URL}${AI_GEN_PATH}?user_id=${encodeURIComponent(userId)}`;
   console.log("[AI-GEN] POST", url);
