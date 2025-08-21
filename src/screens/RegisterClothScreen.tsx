@@ -1,12 +1,11 @@
 // RegisterClothScreen.tsx
 // 옷 등록 화면 - 카테고리, 보관위치 모두 드롭다운(팝업+리스트) 방식 + 오른쪽 ▼ 화살표 + 사진 테두리
-
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, Image,
-  ScrollView, StyleSheet, Alert, Modal, FlatList, ActivityIndicator
+  ScrollView, StyleSheet, Alert, Modal, FlatList, ActivityIndicator, Pressable
 } from 'react-native';
-import { launchImageLibrary } from 'react-native-image-picker';
+import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import auth from '@react-native-firebase/auth';
 
 const BASE_URL = 'http://54.79.167.144:5000';
@@ -39,6 +38,9 @@ export default function RegisterClothScreen({ navigation }: any) {
   const [showCatModal, setShowCatModal] = useState(false);
   const [catSearch, setCatSearch] = useState('');
   const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
+
+  // 📷 소스 선택 모달 (카메라/갤러리)
+  const [showPickModal, setShowPickModal] = useState(false);
 
   // 분석 결과
   const [analyzedCategoryEng, setAnalyzedCategoryEng] = useState('');
@@ -82,26 +84,8 @@ export default function RegisterClothScreen({ navigation }: any) {
     }
   };
 
-  // ---- 이미지 선택 ----
-  const pickImage = async () => {
-    const res = await launchImageLibrary({ mediaType: 'photo' });
-    if (res.didCancel || !res.assets?.[0]?.uri) return;
-
-    const asset = res.assets[0];
-    let name = asset.fileName || 'photo.jpg';
-    let type = asset.type || guessType(name);
-    if (!/\.(jpg|jpeg|png)$/i.test(name)) name += '.jpg';
-    // iOS HEIC 대비
-    if (/\.heic$/i.test(name) || type === 'image/heic') {
-      name = name.replace(/\.heic$/i, '.jpg');
-      type = 'image/jpeg';
-    }
-
-    setImageUri(asset.uri!);
-    setImageName(name);
-    setImageType(type);
-
-    // 분석값 초기화
+  // ---- 이미지 소스 선택 ----
+  const resetAnalysisState = () => {
     setAnalyzedCategoryEng('');
     setAnalyzedCategoryKor('');
     setFineCategoryKor('');
@@ -109,6 +93,46 @@ export default function RegisterClothScreen({ navigation }: any) {
     setAnalyzedColorRgb(null);
     setAnalyzedSubColorRgb(null);
     setLastAnalyzedForUri('');
+  };
+
+  const pickFromGallery = async () => {
+    setShowPickModal(false);
+    const res = await launchImageLibrary({ mediaType: 'photo' });
+    if (res.didCancel || !res.assets?.[0]?.uri) return;
+
+    const a = res.assets[0];
+    let name = a.fileName || 'photo.jpg';
+    let type = a.type || guessType(name);
+    if (!/\.(jpg|jpeg|png)$/i.test(name)) name += '.jpg';
+    if (/\.heic$/i.test(name) || type === 'image/heic') {
+      name = name.replace(/\.heic$/i, '.jpg');
+      type = 'image/jpeg';
+    }
+
+    setImageUri(a.uri!);
+    setImageName(name);
+    setImageType(type);
+    resetAnalysisState();
+  };
+
+  const pickFromCamera = async () => {
+    setShowPickModal(false);
+    const res = await launchCamera({ mediaType: 'photo', saveToPhotos: false });
+    if (res.didCancel || !res.assets?.[0]?.uri) return;
+
+    const a = res.assets[0];
+    let name = a.fileName || 'photo.jpg';
+    let type = a.type || guessType(name);
+    if (!/\.(jpg|jpeg|png)$/i.test(name)) name += '.jpg';
+    if (/\.heic$/i.test(name) || type === 'image/heic') {
+      name = name.replace(/\.heic$/i, '.jpg');
+      type = 'image/jpeg';
+    }
+
+    setImageUri(a.uri!);
+    setImageName(name);
+    setImageType(type);
+    resetAnalysisState();
   };
 
   // ---- 블록 로드 ----
@@ -138,7 +162,6 @@ export default function RegisterClothScreen({ navigation }: any) {
       const res: any = await postMultipart(`${BASE_URL}/api/analyze-category`, fd, 30000);
       console.log('🧪 analyze response raw:', res);
 
-      // 카테고리 키 폭넓게 흡수 (백엔드 유연 대응)
       const catRaw =
         res?.category ??
         res?.fine_category ??
@@ -155,7 +178,6 @@ export default function RegisterClothScreen({ navigation }: any) {
       const eng = normalizeEng(engCandidate);
       const kor = engToKorFineCategory[eng] ?? '';
 
-      // 다양한 키 호환 (컬러)
       const color = res?.color ?? res?.dominant_color ?? res?.mainColor ?? '';
       const colorRgbRaw = res?.colorRgb ?? res?.color_rgb ?? res?.dominant_rgb ?? res?.dominantRgb ?? null;
       const subRgbRaw  = res?.subColorRgb ?? res?.sub_color_rgb ?? res?.accent_rgb ?? res?.secondary_rgb ?? null;
@@ -163,10 +185,9 @@ export default function RegisterClothScreen({ navigation }: any) {
       const colorRgbObj = toRgbObj(colorRgbRaw);
       const subRgbObj   = toRgbObj(subRgbRaw);
 
-      // 상태 반영 (UI에도 노출)
       setAnalyzedCategoryEng(eng);
-      setAnalyzedCategoryKor(kor || eng || '');   // ← 한글 매핑 실패 시 영문 fallback
-      setFineCategoryKor(kor);                    // 수동선택은 한글 리스트 기준 유지
+      setAnalyzedCategoryKor(kor || eng || '');
+      setFineCategoryKor(kor);
       setAnalyzedColor(color || '');
       setAnalyzedColorRgb(colorRgbObj);
       setAnalyzedSubColorRgb(subRgbObj);
@@ -199,7 +220,6 @@ export default function RegisterClothScreen({ navigation }: any) {
 
       setUploading(true);
 
-      // 최근 분석 동일 이미지면 스킵, 아니면 분석
       if (lastAnalyzedForUri !== imageUri) {
         try {
           await runAnalyze();
@@ -208,13 +228,11 @@ export default function RegisterClothScreen({ navigation }: any) {
         }
       }
 
-      // 카테고리 최종값 확정: 수동 선택 > 분석
       const categoryEng =
         korToEngFineCategory[fineCategoryKor] ||
         analyzedCategoryEng ||
         'unknown';
 
-      // 색상/보조색 확정: 분석 결과 사용
       const color = analyzedColor || '';
       const colorRgb = analyzedColorRgb ?? null;
       const subColorRgb = analyzedSubColorRgb ?? null;
@@ -253,9 +271,27 @@ export default function RegisterClothScreen({ navigation }: any) {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>옷 등록</Text>
 
-      <TouchableOpacity style={styles.uploadBox} onPress={pickImage} disabled={uploading}>
-        {imageUri ? <Image source={{ uri: imageUri }} style={styles.img} /> : <Text style={{ color: '#aaa' }}>사진 선택</Text>}
+      <TouchableOpacity style={styles.uploadBox} onPress={() => setShowPickModal(true)} disabled={uploading}>
+        {imageUri ? <Image source={{ uri: imageUri }} style={styles.img} /> : <Text style={{ color: '#aaa' }}>사진 선택 (탭)</Text>}
       </TouchableOpacity>
+
+      {/* 📷 소스 선택 모달 */}
+      <Modal visible={showPickModal} transparent animationType="fade">
+        <Pressable style={styles.modalOverlay} onPress={() => setShowPickModal(false)}>
+          <View style={styles.pickModalBox} onStartShouldSetResponder={() => true}>
+            <Text style={styles.pickTitle}>사진 선택</Text>
+            <TouchableOpacity style={styles.pickBtn} onPress={pickFromCamera}>
+              <Text style={styles.pickBtnText}>📷 카메라로 촬영</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.pickBtn} onPress={pickFromGallery}>
+              <Text style={styles.pickBtnText}>🖼 갤러리에서 선택</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.pickBtn, styles.pickCancel]} onPress={() => setShowPickModal(false)}>
+              <Text style={[styles.pickBtnText, { color: '#555' }]}>취소</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
 
       {/* 분석 결과 미리보기 박스 */}
       {(analyzedCategoryKor || analyzedColor) && (
@@ -367,6 +403,15 @@ const styles = StyleSheet.create({
     borderRadius: 10, marginBottom: 12, borderWidth: 1.5, borderColor: '#6AC892',
   },
   img: { width: 160, height: 160, borderRadius: 8 },
+
+  // 선택 모달
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.25)', justifyContent: 'center', alignItems: 'center' },
+  pickModalBox: { backgroundColor: '#fff', width: 260, borderRadius: 12, padding: 16 },
+  pickTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 8, color: '#222' },
+  pickBtn: { paddingVertical: 12, alignItems: 'center' },
+  pickBtnText: { fontSize: 15, color: '#222' },
+  pickCancel: { borderTopWidth: 1, borderTopColor: '#eee', marginTop: 6 },
+
   input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 10, marginBottom: 10, fontSize: 15 },
   downArrow: { fontSize: 18, color: '#bbb', marginLeft: 8 },
   label: { fontSize: 16, fontWeight: 'bold', marginTop: 12, marginBottom: 4, color: '#444' },
@@ -377,10 +422,12 @@ const styles = StyleSheet.create({
   analyzeBtn: { backgroundColor: '#37955F', padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 12 },
   submit: { backgroundColor: '#37955F', padding: 14, borderRadius: 8, alignItems: 'center', marginTop: 20 },
   submitText: { color: '#fff', fontSize: 17, fontWeight: 'bold' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.2)', justifyContent: 'center', alignItems: 'center' },
+
+  // 공통 선택 모달(검색 리스트)
   modalContent: { width: 280, maxHeight: '70%', backgroundColor: '#fff', borderRadius: 10, padding: 16 },
   modalInput: { padding: 10, borderRadius: 8, backgroundColor: '#F6F6F8', marginBottom: 10 },
   modalItem: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#eee' },
+
   resultBox: { padding: 10, borderWidth: 1, borderColor: '#e5e5e5', borderRadius: 8, marginBottom: 12, backgroundColor: '#fafafa' },
   resultTitle: { fontWeight: 'bold', marginBottom: 6 },
 });
