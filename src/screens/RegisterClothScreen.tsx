@@ -294,16 +294,13 @@ export default function RegisterClothScreen({ navigation }: any) {
       </Modal>
 
       {/* 분석 결과 미리보기 박스 */}
-      {(analyzedCategoryKor || analyzedColor) && (
-        <View style={styles.resultBox}>
-          <Text style={styles.resultTitle}>분석 결과</Text>
-          <Text>카테고리: {analyzedCategoryKor || analyzedCategoryEng || '-'}</Text>
-          <Text>메인 컬러: {analyzedColor || '-'}</Text>
-          <Text>
-            색상 RGB: {analyzedColorRgb ? `${analyzedColorRgb.r}, ${analyzedColorRgb.g}, ${analyzedColorRgb.b}` : '-'}
-          </Text>
-        </View>
-      )}
+        {(analyzedCategoryKor || analyzedColor) && (
+          <View style={styles.resultBox}>
+            <Text style={styles.resultTitle}>분석 결과</Text>
+            <Text>메인 컬러: {analyzedColor || '-'}</Text>
+          </View>
+        )}
+
 
       <TouchableOpacity style={styles.analyzeBtn} onPress={handleAnalyze} disabled={!imageUri || analyzing || uploading}>
         <Text style={{ color: '#fff' }}>{analyzing ? '분석 중...' : 'AI 자동 분류'}</Text>
