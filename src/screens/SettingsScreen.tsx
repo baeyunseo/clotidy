@@ -1,142 +1,137 @@
 // src/screens/SettingsScreen.tsx
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
-  SafeAreaView,
   StatusBar,
+  Switch,
+  Alert,
+  SafeAreaView,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 
-export default function MyPageScreen() {
+export default function SettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const PUSH_KEY = 'settings.pushEnabled';
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const saved = await AsyncStorage.getItem(PUSH_KEY);
+        if (saved !== null) setPushEnabled(saved === 'true');
+      } catch {}
+    })();
+  }, []);
+
+  const handleTogglePush = async (value: boolean) => {
+    try {
+      setPushEnabled(value);
+      await AsyncStorage.setItem(PUSH_KEY, String(value));
+      // 필요하면 여기서 서버 반영/권한요청/토큰등록 로직 추가
+    } catch {
+      Alert.alert('오류', '알림 설정 변경 중 문제가 발생했습니다.');
+    }
+  };
+
+  const handleLogout = () => {
+    Alert.alert('로그아웃', '정말 로그아웃 하시겠어요?', [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '로그아웃',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await AsyncStorage.multiRemove(['auth.accessToken', 'auth.refreshToken', 'user.profile']);
+            // 앱 첫 화면 혹은 Login으로 변경
+            navigation.reset({ index: 0, routes: [{ name: 'Home' as any }] });
+          } catch {
+            Alert.alert('오류', '로그아웃 중 문제가 발생했습니다.');
+          }
+        },
+      },
+    ]);
+  };
 
   return (
-      <View style={styles.container}>
+    <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" />
+      <View style={styles.container}>
+        <Text style={styles.title}>설정</Text>
 
-     
-      <Text style={styles.title}>마이페이지</Text>
-
-      <View style={styles.cardContainer}>
-  <TouchableOpacity
-    style={styles.card}
-    onPress={() => navigation.navigate('MyPage')}
-  >
-          <Image source={require('../../assets/icons/user-purple.png')} style={styles.icon} />
-          <Text style={styles.cardText}>내 정보</Text>
+        {/* 내 정보 수정 */}
+        <TouchableOpacity
+          style={styles.row}
+          onPress={() => {
+            // 내 정보 수정 화면으로 이동
+            // 존재하면 'EditProfile', 없으면 기존 'MyPage'로 연결
+            navigation.navigate('EditMyPage'); // <-- 필요 시 'EditProfile'로 변경
+          }}
+        >
+          <Text style={styles.rowText}>내 정보 수정</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.card}  onPress={() => {}}>
-          <Image source={require('../../assets/icons/settings.png')} style={styles.settingIcon} />
-          <Text style={styles.cardText}>설정</Text>
+        {/* 푸쉬 알림 설정 */}
+        <View style={styles.row}>
+          <Text style={styles.rowText}>푸쉬 알림 설정</Text>
+          <Switch value={pushEnabled} onValueChange={handleTogglePush} />
+        </View>
+
+        {/* 로그아웃 */}
+        <TouchableOpacity style={[styles.row, styles.logoutRow]} onPress={handleLogout}>
+          <Text style={[styles.rowText, styles.logoutText]}>로그아웃</Text>
         </TouchableOpacity>
       </View>
-
-  
-                <View style={styles.tabBar}>
-                       <TouchableOpacity onPress={() => navigation.navigate("Home")}>
-                 　　   <Image source={require("../../assets/icons/home.png")} 
-                         style={[styles.tabIcon, styles.homeIcon]} />
-                   　　　</TouchableOpacity>
-                         <TouchableOpacity onPress={() => navigation.navigate("Alarm")}>
-                         <Image source={require("../../assets/icons/bell.png")}
-                          style={[styles.tabIcon, styles.homeIcon]} />
-                         </TouchableOpacity>
-                                 
-                       　 <TouchableOpacity onPress={() => navigation.navigate({ name: 'RegisterCloth', params: { imageUri: "" } })}>
-                         　<Image source={require("../../assets/icons/camera.png")} 
-                         style={[styles.tabIcon, styles.homeIcon]} />
-                           </TouchableOpacity>
-                           <TouchableOpacity onPress={() => navigation.navigate("Settings")}>
-                           <Image source={require("../../assets/icons/hanger.png")} style={styles.tabIcon} />
-                           </TouchableOpacity>
-                           <TouchableOpacity onPress={() => navigation.navigate("Calendar")}>
-                           <Image source={require("../../assets/icons/daily.png")} style={styles.tabIcon} />
-                           </TouchableOpacity>
-                           
-      </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safe: {
     flex: 1,
     backgroundColor: '#FFFEFA',
-    alignItems: 'center',
   },
-  logo: {
-    width: 126,
-    height: 30,
-    resizeMode: 'contain',
-    marginTop: 50,
-    marginBottom: 10,
+  container: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    backgroundColor: '#FFFEFA',
   },
   title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 80,
-    marginBottom: 50,
+    fontSize: 20,
+    fontWeight: '800',
     color: '#222',
+    marginBottom: 16,
   },
-  cardContainer: {
+  row: {
+    height: 56,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#EEE',
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 20,
-    marginBottom: 30,
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  card: {
-    width: 170,
-    height: 220,
-    backgroundColor: '#F2F8F3',
-    borderRadius: 16,
-    alignItems: 'flex-start',
-    justifyContent: 'flex-start',
-    paddingHorizontal: 15,
-    paddingTop: 10,
-  },
-  icon: {
-    width: 30,
-    height: 30,
-    marginBottom: 10,
-    tintColor: '#333',
-  },
-  cardText: {
-    fontSize: 14,
+  rowText: {
+    fontSize: 16,
+    color: '#222',
     fontWeight: '600',
-    color: '#222',
   },
-  tabBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderColor: '#ddd',
-    backgroundColor: '#FFFEFA',
-    position: 'absolute',
-    bottom: 0,
-    width: '100%',
+  logoutRow: {
+    backgroundColor: '#FBE9E9',
+    borderColor: '#F5CDCD',
   },
-  tabIcon: {
-    width: 35,
-    height: 35,
+  logoutText: {
+    color: '#B00020',
+    fontWeight: '800',
   },
-   homeIcon: {
-    width: 40,
-    height: 40,
-  },
-  settingIcon: {
-  width: 40,   // ← 好きな大きさ
-  height: 35,
-  marginBottom: 10,
-  tintColor: '#333',
-},
-
 });
