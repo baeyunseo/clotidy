@@ -122,7 +122,7 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#FFFEFA' },
   container: { flex: 1, paddingHorizontal: 20, paddingTop: 24, backgroundColor: '#FFFEFA' },
-  title: { fontSize: 20, fontWeight: '800', color: '#222', marginBottom: 16 },
+  title: { fontSize: 20, fontWeight: '800', color: '#222', marginBottom: 16, marginTop:30, left:170 },
   row: {
     height: 56,
     backgroundColor: '#fff',
