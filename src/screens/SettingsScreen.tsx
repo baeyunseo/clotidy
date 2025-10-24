@@ -2,19 +2,23 @@
 
 import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  StatusBar,
-  Switch,
-  Alert,
-  SafeAreaView,
+  View, Text, StyleSheet, TouchableOpacity, StatusBar, Switch, Alert, SafeAreaView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
+
+// (선택) axios를 쓴다면 불러와서 기본 헤더도 비워준다.
+// import axios from 'axios';
+
+// (선택) 전역 상태(예: Zustand/Recoil/Context)라면 가져와서 메모리의 user도 null로 만든다.
+// import { useAuthStore } from '../stores/auth';
+
+// (선택) react-query를 쓰면 캐시 클리어
+// import { queryClient } from '../lib/queryClient';
+
+const AUTH_ROUTE: keyof RootStackParamList = 'Login'; // ← 너의 "로그인/시작" 화면 이름으로 변경!
 
 export default function SettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -34,10 +38,39 @@ export default function SettingsScreen() {
     try {
       setPushEnabled(value);
       await AsyncStorage.setItem(PUSH_KEY, String(value));
-      // 필요하면 여기서 서버 반영/권한요청/토큰등록 로직 추가
+      // TODO: 서버 반영/권한요청/토큰등록/해제 로직 연결
     } catch {
       Alert.alert('오류', '알림 설정 변경 중 문제가 발생했습니다.');
     }
+  };
+
+  const performLogout = async () => {
+    // 1) 서버 세션 만료(선택)
+    // try { await api.post('/auth/logout'); } catch {}
+
+    // 2) 로컬 토큰/유저/설정 제거 (필요 키 전부)
+    const keysToRemove = [
+      'auth.accessToken',
+      'auth.refreshToken',
+      'user.profile',
+      'settings.pushToken',
+      'settings.pushEnabled',
+      // 필요하면 더 추가
+    ];
+    await AsyncStorage.multiRemove(keysToRemove);
+
+    // 3) 메모리 상태/헤더/캐시 초기화 (사용 중일 때만)
+    // axios.defaults.headers.common.Authorization = undefined;
+    // useAuthStore.getState().setUser(null); // 예시
+    // await queryClient.clear(); // 예시
+
+    // 4) 네비게이션 스택 완전 초기화 → 로그인(시작) 화면으로
+    navigation.dispatch(
+      CommonActions.reset({
+        index: 0,
+        routes: [{ name: AUTH_ROUTE as string }],
+      })
+    );
   };
 
   const handleLogout = () => {
@@ -48,9 +81,7 @@ export default function SettingsScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            await AsyncStorage.multiRemove(['auth.accessToken', 'auth.refreshToken', 'user.profile']);
-            // 앱 첫 화면 혹은 Login으로 변경
-            navigation.reset({ index: 0, routes: [{ name: 'Home' as any }] });
+            await performLogout();
           } catch {
             Alert.alert('오류', '로그아웃 중 문제가 발생했습니다.');
           }
@@ -68,11 +99,7 @@ export default function SettingsScreen() {
         {/* 내 정보 수정 */}
         <TouchableOpacity
           style={styles.row}
-          onPress={() => {
-            // 내 정보 수정 화면으로 이동
-            // 존재하면 'EditProfile', 없으면 기존 'MyPage'로 연결
-            navigation.navigate('EditMyPage'); // <-- 필요 시 'EditProfile'로 변경
-          }}
+          onPress={() => navigation.navigate('EditMyPage')}
         >
           <Text style={styles.rowText}>내 정보 수정</Text>
         </TouchableOpacity>
@@ -93,22 +120,9 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: '#FFFEFA',
-  },
-  container: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    backgroundColor: '#FFFEFA',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#222',
-    marginBottom: 16,
-  },
+  safe: { flex: 1, backgroundColor: '#FFFEFA' },
+  container: { flex: 1, paddingHorizontal: 20, paddingTop: 24, backgroundColor: '#FFFEFA' },
+  title: { fontSize: 20, fontWeight: '800', color: '#222', marginBottom: 16 },
   row: {
     height: 56,
     backgroundColor: '#fff',
@@ -121,17 +135,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  rowText: {
-    fontSize: 16,
-    color: '#222',
-    fontWeight: '600',
-  },
-  logoutRow: {
-    backgroundColor: '#FBE9E9',
-    borderColor: '#F5CDCD',
-  },
-  logoutText: {
-    color: '#B00020',
-    fontWeight: '800',
-  },
+  rowText: { fontSize: 16, color: '#222', fontWeight: '600' },
+  logoutRow: { backgroundColor: '#FBE9E9', borderColor: '#F5CDCD' },
+  logoutText: { color: '#B00020', fontWeight: '800' },
 });
