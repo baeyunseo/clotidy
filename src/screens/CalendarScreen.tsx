@@ -30,7 +30,7 @@ type Cloth = {
   category: string;
   locationLabel: string;
   lastWorn?: string;   // YYYY-MM-DD
-  wearCount?: number;
+  wearCount: number;
 };
 type WearRecord = {
   id: string;
@@ -75,6 +75,10 @@ function monthRange(isoYmd: string) {
   return { start: toISODate(start), end: toISODate(end) };
 }
 
+// 고유 ID (FlatList key 충돌 방지)
+const makeLocalId = (clothId: string, date: string) =>
+  `${clothId}-${date}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
 export default function CalendarRecordScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
@@ -110,7 +114,11 @@ export default function CalendarRecordScreen() {
             category: String(d.category ?? '').trim(),
             locationLabel: String(d.location ?? d.locationLabel ?? '').trim(),
             lastWorn: fromFsTimestamp(d.last_worn ?? d.lastWorn),
-            wearCount: Number(d.wear_count ?? d.wearCount ?? 0),
+            // 🔥 worn_count / wornCount / wear_count / wearCount 모두 대비
+            wearCount: Number(
+              d.worn_count ?? d.wornCount ??
+              d.wear_count ?? d.wearCount ?? 0
+            ) || 0,
           };
           map[item.id] = item;
         });
@@ -146,6 +154,7 @@ export default function CalendarRecordScreen() {
         if (!cancelled) setRecordsByDate(byDate);
       } catch (e: any) {
         if (e?.response?.status === 404) {
+          // 서버가 wear-records를 안 줄 때 lastWorn으로 1건씩 가짜 생성
           const byDate: Record<string, WearRecord[]> = {};
           Object.values(clothes).forEach(c => {
             if (c.lastWorn) {
@@ -166,9 +175,14 @@ export default function CalendarRecordScreen() {
     return () => { cancelled = true; };
   }, [uid, selected, clothes]);
 
+  // 날짜별 레코드 수만큼 달력 점(최대 3개)
   const marked = useMemo<MarkedMap>(() => {
     const marks: MarkedMap = {};
-    Object.keys(recordsByDate).forEach(d => { marks[d] = { dots: [{ color: ACCENT }] }; });
+    Object.keys(recordsByDate).forEach(d => {
+      const cnt = (recordsByDate[d]?.length ?? 0);
+      const dots = Array.from({ length: Math.min(cnt, 3) }, (_, i) => ({ color: ACCENT, key: `dot-${i}` }));
+      marks[d] = { dots };
+    });
     marks[selected] = { ...(marks[selected] || {}), selected: true, selectedColor: ACCENT, selectedTextColor: '#fff' };
     return marks;
   }, [recordsByDate, selected]);
@@ -199,40 +213,53 @@ export default function CalendarRecordScreen() {
   const onConfirmAdd = async () => {
     if (!uid) return Alert.alert('오류', '로그인이 필요합니다.');
     if (!form.clothId) return Alert.alert('안내', '아이템을 선택해 주세요.');
+
+    const cid = String(form.clothId);
+    const memoText = form.memo ?? '';
+
     try {
       const headers = await authHeaders();
       await axios.patch(
-        ENDPOINTS.patchLastWorn(form.clothId),
+        ENDPOINTS.patchLastWorn(cid),
         { last_worn: toStartOfDayZ(selected), alsoIncrement: true },
         { headers }
       );
 
-      setOpen(false);
-      setForm({ clothId: '', memo: '' });
-
+      // UI 즉시 반영: clothes 내 해당 아이템 착용 횟수/마지막 착용 갱신
       setClothes(prev => {
-        const cur = prev[form.clothId];
+        const cur = prev[cid];
         if (!cur) return prev;
+        const nextCount = (typeof cur.wearCount === 'number' ? cur.wearCount : Number(cur.wearCount) || 0) + 1;
         return {
           ...prev,
-          [form.clothId]: { ...cur, lastWorn: selected, wearCount: (cur.wearCount ?? 0) + 1 }
+          [cid]: {
+            ...cur,
+            lastWorn: selected,
+            wearCount: nextCount,
+          },
         };
       });
+
+      // 리스트에도 로컬 레코드 추가(키 충돌 방지)
       setRecordsByDate(prev => {
         const next = { ...prev };
+        const localId = makeLocalId(cid, selected);
         next[selected] = [
           ...(next[selected] ?? []),
-          { id: `${form.clothId}-${selected}`, date: selected, clothId: form.clothId, memo: form.memo ?? '' }
+          { id: localId, date: selected, clothId: cid, memo: memoText },
         ];
         return next;
       });
+
+      // 폼/모달 초기화
+      setForm({ clothId: '', memo: '' });
+      setOpen(false);
     } catch (e:any) {
       console.error('❌ last-worn patch error:', e?.response?.status, e?.message);
       Alert.alert('오류', '기록 추가에 실패했습니다.');
     }
   };
 
-  // 左スワイプで削除（UI 楽観反映 + サーバ削除）
   const onDeleteRecord = async (rec: WearRecord) => {
     setRecordsByDate(prev => {
       const next = { ...prev };
@@ -294,8 +321,11 @@ export default function CalendarRecordScreen() {
           keyExtractor={(it) => it.id}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           contentContainerStyle={{ paddingBottom: 24 }}
+          extraData={clothes}  // clothes 변경 시 행 리렌더
           renderItem={({ item }) => {
             const cloth = clothes[item.clothId];
+            const wc = (typeof cloth?.wearCount === 'number' ? cloth?.wearCount : Number(cloth?.wearCount) || 0);
+
             const RightActions = () => (
               <TouchableOpacity style={styles.swipeDelete} onPress={() => onDeleteRecord(item)}>
                 <Text style={styles.swipeDeleteText}>삭제</Text>
@@ -312,9 +342,9 @@ export default function CalendarRecordScreen() {
                   <Image source={{ uri: cloth?.thumbnail || '' }} style={styles.thumb} />
                   <View style={styles.meta}>
                     <Text style={styles.name}>{cloth?.name ?? '아이템'}</Text>
-                    <Text style={styles.sub}>{cloth?.locationLabel ?? ''}</Text>
+                    <Text style={styles.sub}>{cloth?.category || cloth?.locationLabel || ''}</Text>
                     <Text style={styles.sub}>마지막 착용일 : {cloth?.lastWorn ?? '-'}</Text>
-                    <Text style={styles.sub}>총 착용 : {typeof cloth?.wearCount === 'number' ? cloth?.wearCount : 0}회</Text>
+                    <Text style={styles.sub}>총 착용 : {wc}회</Text>
                     {!!item.memo && <Text style={styles.sub}>메모 : {item.memo}</Text>}
                   </View>
                 </View>
@@ -382,7 +412,7 @@ export default function CalendarRecordScreen() {
                   {clothesLoaded && Object.values(clothesForPick).map(c => (
                     <Picker.Item
                       key={c.id}
-                      label={`${c.name} (${c.locationLabel}) · ${c.wearCount ?? 0}회`}
+                      label={`${c.name} (${c.locationLabel}) · ${(Number(c.wearCount) || 0)}회`}
                       value={String(c.id)}
                     />
                   ))}
@@ -464,7 +494,6 @@ const styles = StyleSheet.create({
   btnPrimary: { backgroundColor: ACCENT, borderBottomRightRadius: 16 },
   btnText: { fontSize: 16, fontWeight: '700' },
 
-  // 左スワイプ時に出る削除ボタン
   swipeDelete: {
     width: 84,
     backgroundColor: '#E04848',
